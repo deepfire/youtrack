@@ -10,6 +10,7 @@ yt-request-*
 dist
 *.swp
 
+.stack-work
 cabal-dev/
 .hsenv/
 .cabal-sandbox/

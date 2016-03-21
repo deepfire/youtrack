@@ -1,0 +1,45 @@
+name:                youtrack
+copyright:           Copyright (c) 2016 Kosyrev Serge
+version:             0.0.1
+synopsis:            Access a Jetbrains YouTrack instance.
+homepage:            https://github.com/deepfire/youtrack
+bug-reports:         https://github.com/deepfire/youtrack/issues
+license:             GPL-3
+license-file:        LICENSE
+author:              Kosyrev Serge
+maintainer:          _deepfire@feelingofgreen.ru
+category:            Database
+build-type:          Simple
+extra-doc-files:     README.org
+cabal-version:       >=1.10
+tested-with:         GHC==8.0.1
+
+source-repository head
+  type:     git
+  location: https://github.com/deepfire/youtrack.git
+
+library
+  exposed-modules:     Youtrack
+
+  build-depends:       aeson >=0.11
+                     , base >=4.8
+                     , base-unicode-symbols >=0.2
+                     , bytestring >=0.10
+                     , HsOpenSSL >=0.11
+                     , http-client >=0.4
+                     , http-client-openssl >=0.2
+                     , lens >=4.0
+                     , mtl >=2.0
+                     , parsers >=0.12
+                     , safe >= 0.3
+                     , scientific >=0.3
+                     , text >=1.2
+                     , time >=1.5
+                     , trifecta >=1.5
+                     , unordered-containers >=0.2
+                     , utf8-string >=1.0
+                     , vector >=0.11
+                     , wreq >=0.4
+
+  hs-source-dirs:      src
+  default-language:    Haskell2010

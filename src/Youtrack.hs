@@ -60,6 +60,7 @@ import           Data.Maybe                  (fromMaybe)
 import           Data.Monoid                 ((<>))
 import           GHC.Exts                    (Constraint)
 import           GHC.Generics                (Generic(Rep))
+import           GHC.Stack                   (HasCallStack)
 import           GHC.TypeLits                (Symbol)
 import           Prelude.Unicode
 
@@ -149,7 +150,7 @@ data SSLOptions = SSLOptions {
     , optionsCaCert     ∷ FilePath
     } deriving (Eq, Show)
 
-setupSSLCtx ∷ SSLOptions → IO SSLContext
+setupSSLCtx ∷ HasCallStack ⇒ SSLOptions → IO SSLContext
 setupSSLCtx (SSLOptions _ caCert) = do
   ctx ← SSL.context
   SSL.contextSetCertificateFile ctx caCert
@@ -174,14 +175,14 @@ data YT where
     , jar          ∷ CookieJar
     } → YT
 
-complete_yt_access ∷ Access → Maybe String → IO Access
+complete_yt_access ∷ HasCallStack ⇒ Access → Maybe String → IO Access
 complete_yt_access yta maipath = do
     macc ← getPassword maipath (hostname yta) (login yta)
     case macc of
       Nothing        → error $ printf "ERROR: no password for username '%s' on host '%s'." (login yta) (hostname yta)
       Just (pass, _) → pure $ yta { password = Just pass }
 
-ytConnect ∷ Access → Maybe String → IO YT
+ytConnect ∷ HasCallStack ⇒ Access → Maybe String → IO YT
 ytConnect access maipath = do
   full_access ← complete_yt_access access maipath
   let (Access host ssl_opts login (Just password)) = full_access
@@ -533,7 +534,7 @@ instance Exchange EIssueTTWItem where
 
 
 -- * Request IO machinery
-ytRequestRaw ∷ (Exchange y) ⇒ YT → Request y → IO BL.ByteString
+ytRequestRaw ∷ HasCallStack ⇒ (Exchange y) ⇒ YT → Request y → IO BL.ByteString
 ytRequestRaw (YT (Access hostname ssl_opts _ _) wreq_opts jar) req = do
   let url    = "https://" <> hostname <> "/rest" <> (fromURLPath $ request_urlpath req)
       params = request_params req
@@ -543,13 +544,13 @@ ytRequestRaw (YT (Access hostname ssl_opts _ _) wreq_opts jar) req = do
   -- printf "<-- %s\n" $ show $ r ^. WR.responseBody
   pure $ r ^. WR.responseBody
 
-ytDecode ∷ (FromJSON r) ⇒ BL.ByteString → IO r
+ytDecode ∷ HasCallStack ⇒ (FromJSON r) ⇒ BL.ByteString → IO r
 ytDecode bs = do
   case AE.eitherDecode bs of
     Left e     → error e
     Right resp → pure resp
 
-ytRequest ∷ (Exchange y, FromJSON (Response y)) ⇒ YT → Request y → IO (Response y)
+ytRequest ∷ HasCallStack ⇒ (Exchange y, FromJSON (Response y)) ⇒ YT → Request y → IO (Response y)
 ytRequest yt req =
     ytRequestRaw yt req >>=
     ytDecode

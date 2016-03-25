@@ -10,6 +10,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -20,6 +21,7 @@
 #if (__GLASGOW_HASKELL__ > 710)
 {-# LANGUAGE UndecidableSuperClasses #-}
 #endif
+{-# OPTIONS_GHC -fno-warn-unused-binds -fno-warn-unused-matches -fno-warn-unused-do-bind #-}
 
 module Youtrack
     (
@@ -61,13 +63,12 @@ import           Data.Monoid                 ((<>))
 import           GHC.Exts                    (Constraint)
 import           GHC.Generics                (Generic(Rep))
 import           GHC.Stack                   (HasCallStack)
-import           GHC.TypeLits                (Symbol)
 import           Prelude.Unicode
 
 
 -- Debug imports
 import           Text.Printf                 (printf)
-import           Debug.Trace                 (trace)
+--import           Debug.Trace                 (trace)
 
 
 -- External imports
@@ -98,8 +99,6 @@ import qualified System.Environment
 import qualified Text.Parser.Char             as P
 import qualified Text.Parser.Combinators      as P
 import qualified Text.Parser.Token            as P
-import qualified Text.Trifecta.Combinators    as P
-import qualified Text.Trifecta.Delta          as P
 import qualified Text.Trifecta.Parser         as P
 
 
@@ -123,10 +122,10 @@ readAuthInfoLine = do
 
 readAuthInfo ∷ (Monad p, P.TokenParsing p) ⇒ p [(String, String, String, Maybe String)]
 readAuthInfo = do
-  lines ← P.sepEndBy readAuthInfoLine (P.newline)
+  lines' ← P.sepEndBy readAuthInfoLine (P.newline)
   P.whiteSpace
   P.eof
-  pure lines
+  pure lines'
 
 readAuthInfoFile ∷ String → IO (Maybe [(String, String, String, Maybe String)])
 readAuthInfoFile aipath = do
@@ -219,7 +218,7 @@ instance FromJSON      PVersionList                  where
     parseJSON v@(AE.Array _) = AE.genericParseJSON AE.defaultOptions v
     parseJSON v              = fail $ printf "unexpected value for a version list: %s" (show v)
 interpret_strdate ∷ T.Text → LocalTime
-interpret_strdate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ floor ∘ (/ 1000.0) ∘ read ∘ T.unpack
+interpret_strdate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Double → Integer) ∘ ((/ 1000.0) ∷ Double → Double) ∘ read ∘ T.unpack
 newtype PDate        = PDate      { fromPDate ∷ LocalTime } deriving (Generic, Show)
 instance FromJSON      PDate                         where parseJSON = AE.withText "date" $ \n → do
                                                                        pure ∘ PDate $ interpret_strdate n
@@ -263,7 +262,7 @@ instance FromJSON      WType                        where parseJSON = AE.withObj
                                                                       WType <$> o .: "name"
 
 interpret_scidate ∷ Scientific → LocalTime
-interpret_scidate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ floor ∘ (/ 1000)
+interpret_scidate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Scientific → Integer) ∘ (/ 1000)
 newtype WDate        = WDate      { fromWDate ∷ LocalTime } deriving (Generic, Show, Eq, Ord)
 instance FromJSON      WDate                        where parseJSON = AE.withScientific "work date" $ \n → do
                                                                         pure ∘ WDate $ interpret_scidate n
@@ -277,10 +276,10 @@ data ILink =
 instance FromJSON   ILink                       where parseJSON = recdrop1_from_JSON
 
 abbrev_object ∷ Value → Value
-abbrev_object (AE.Object map) = AE.Object $ (flip HM.mapWithKey) map
-                                            (\k v → case k of
-                                                      "name" → v
-                                                      _      → abbrev_object v)
+abbrev_object (AE.Object omap) = AE.Object $ (flip HM.mapWithKey) omap
+                                             (\k v → case k of
+                                                       "name" → v
+                                                       _      → abbrev_object v)
 abbrev_object (AE.String s)   = AE.String $ T.take 3 s
 abbrev_object (AE.Array  xs)  = AE.Array $ fmap abbrev_object xs
 abbrev_object x               = x
@@ -381,11 +380,11 @@ instance FromJSON (Reader Project Issue) where
             fields = case value_map_lookup "issue field list" o "field" of
                        AE.Array xs →
                            HM.fromList
-                             [ ( case value_lookup "field name" "name" o of
+                             [ ( case value_lookup "field name" "name" obj of
                                    AE.String t → t
-                                   x           → error "Malformed field value: non-text 'name' field."
-                               , value_lookup "field value" "value" o )
-                             | o ← V.toList xs]
+                                   _           → error "Malformed field value: non-text 'name' field."
+                               , value_lookup "field value" "value" obj )
+                             | obj ← V.toList xs]
                        erx         →
                            error $ printf "Not a field list in the 'field' issue element, got %s instead." $ show erx
             missing ∷ String → String → String
@@ -452,7 +451,7 @@ instance FromJSON    (Reader Project WorkItem) where { parseJSON
         WDate _wdate     ← o .: "date"
         author           ← o .: "author"
         (duration ∷ Int) ← o .: "duration"
-        let _wduration   = Hours $ floor $ fromIntegral duration / 60.0
+        let _wduration   = Hours ∘ floor $ (fromIntegral duration / 60.0 ∷ Double)
         _wdescription    ← o .: "description"
         pure $ do
              Project{ _members } ← ask
@@ -481,9 +480,9 @@ data Exchanges
 
 -- * /project/all?{verbose}
 --   https://confluence.jetbrains.com/display/YTD65/Get+Accessible+Projects
-instance Exchange EProjectAll where
-    data   Request  EProjectAll  = RProjectAll deriving Show
-    type   Response EProjectAll  = [Project]
+instance Exchange 'EProjectAll where
+    data   Request  'EProjectAll  = RProjectAll deriving Show
+    type   Response 'EProjectAll  = [Project]
     request_urlpath RProjectAll =
         URLPath "/project/all"
     request_params  RProjectAll params =
@@ -510,14 +509,14 @@ instance Exchange EProjectAll where
 --   https://confluence.jetbrains.com/display/YTD65/Get+the+List+of+Issues
 newtype RIssueWrapper = RIssueWrapper { issue ∷ [Reader Project Issue] } deriving (Generic)
 instance FromJSON       RIssueWrapper where parseJSON = newtype_from_JSON
-instance Exchange EIssue where
-    data   Request  EIssue = RIssue Filter {-ignored-} Int {-ignored-} [Field] deriving Show
-    type   Response EIssue = [Reader Project Issue]
+instance Exchange 'EIssue where
+    data   Request  'EIssue = RIssue Filter {-ignored-} Int {-ignored-} [Field] deriving Show
+    type   Response 'EIssue = [Reader Project Issue]
     request_urlpath (RIssue _ _ _) =
         URLPath $ "/issue"
-    request_params  (RIssue (Filter query) max fields) params =
+    request_params  (RIssue (Filter query) limit fields) params =
         params & WR.param "filter" .~ [T.pack query]
-               & WR.param "max"    .~ [T.pack $ printf "%d" max]
+               & WR.param "max"    .~ [T.pack $ printf "%d" limit]
                & WR.param "with"   .~ case fmap (T.pack ∘ field) fields of
                                         [] → [""]
                                         xs → xs
@@ -525,9 +524,9 @@ instance Exchange EIssue where
 
 -- *  /issue/{issue}/timetracking/workitem/
 --   https://confluence.jetbrains.com/display/YTD65/Get+Available+Work+Items+of+Issue
-instance Exchange EIssueTTWItem where
-    data   Request  EIssueTTWItem  = RIssueTTWItem IId deriving Show
-    type   Response EIssueTTWItem  = [Reader Project WorkItem]
+instance Exchange 'EIssueTTWItem where
+    data   Request  'EIssueTTWItem  = RIssueTTWItem IId deriving Show
+    type   Response 'EIssueTTWItem  = [Reader Project WorkItem]
     request_urlpath (RIssueTTWItem (IId iid)) =
         URLPath $ "/issue/" <> iid <> "/timetracking/workitem/"
 

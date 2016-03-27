@@ -306,7 +306,7 @@ data Issue =
     Issue {
       _id                  ∷ IId
     , _summary             ∷ ITitle
-    , _itype                ∷ IType        --
+    , _itype               ∷ IType        --
     , _priority            ∷ IPriority    --
     , _author              ∷ Member
     , _assignee            ∷ Maybe Member --
@@ -411,8 +411,8 @@ instance FromJSON (Reader Project Issue) where
         _summary         ← get $ field "summary"
         types            ← mget $ field "Type"
         let _itype       = head $ (fromMaybe [] types) <|> [IType "No Type"] -- XXX: per-project defaulting
-        priority         ← get $ field "Priority"
-        let _priority    = head $ priority <|> [IPriority "No Priority"] -- XXX: per-project defaulting
+        priority         ← mget $ field "Priority"
+        let _priority    = head $ (fromMaybe [IPriority "No Priority"] priority)
         author ∷ String  ← get $ field "reporterName"
         assignee ∷ Maybe String
                          ← mget $ field "Assignee"

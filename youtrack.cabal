@@ -1,6 +1,6 @@
 name:                youtrack
 copyright:           Copyright (c) 2016 Kosyrev Serge
-version:             0.0.1
+version:             0.0.2
 synopsis:            Access a Jetbrains YouTrack instance.
 homepage:            https://github.com/deepfire/youtrack
 bug-reports:         https://github.com/deepfire/youtrack/issues
@@ -12,7 +12,7 @@ category:            Database
 build-type:          Simple
 extra-doc-files:     README.org
 cabal-version:       >=1.10
-tested-with:         GHC==8.0.1
+tested-with:         GHC==7.10.3, GHC==8.0.1
 
 source-repository head
   type:     git

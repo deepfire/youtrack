@@ -36,9 +36,10 @@ module Youtrack
     , Member(..), Project(..), Issue(..), WorkItem(..)
     --
     , MLogin(..), MFullName (..)
-    , PAlias(..), PName(..)
-    , IId(..), IType(..), ITitle(..), IState(..), ITag(..), ILink(..)
-    , WDate(..)
+    , PAlias(..), PName(..), PDate(..)
+    , IId(..), IType(..), IPriority(..), ITitle(..), IState(..), ITag(..), ILink(..)
+    , ICreated(..), IResolved(..), IUpdated(..)
+    , WDate(..), WType(..)
     , Hours(..)
 
     -- * Request model
@@ -215,13 +216,13 @@ newtype PName        = PName      { fromPName ∷ String }  deriving (Generic, S
 instance FromJSON      PName                         where parseJSON = newtype_from_JSON
 newtype PAlias       = PAlias     { fromPAlias ∷ String }  deriving (Generic, Show, Read)
 instance FromJSON      PAlias                        where parseJSON = newtype_from_JSON
-newtype PVersion     = PVersion   { fromPVersion ∷ String }  deriving (Generic, Show)
-instance FromJSON      PVersion                      where parseJSON = newtype_from_JSON
-newtype PVersionList = PVersionList [String]         deriving (Generic, Show)
-instance FromJSON      PVersionList                  where
-    parseJSON (AE.Null)      = pure $ PVersionList []
-    parseJSON v@(AE.Array _) = AE.genericParseJSON AE.defaultOptions v
-    parseJSON v              = fail $ printf "unexpected value for a version list: %s" (show v)
+-- newtype PVersion     = PVersion   { fromPVersion ∷ String }  deriving (Generic, Show)
+-- instance FromJSON      PVersion                      where parseJSON = newtype_from_JSON
+-- newtype PVersionList = PVersionList [String]         deriving (Generic, Show)
+-- instance FromJSON      PVersionList                  where
+--     parseJSON (AE.Null)      = pure $ PVersionList []
+--     parseJSON v@(AE.Array _) = AE.genericParseJSON AE.defaultOptions v
+--     parseJSON v              = fail $ printf "unexpected value for a version list: %s" (show v)
 interpret_strdate ∷ T.Text → LocalTime
 interpret_strdate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Double → Integer) ∘ ((/ 1000.0) ∷ Double → Double) ∘ read ∘ T.unpack
 newtype PDate        = PDate      { fromPDate ∷ LocalTime } deriving (Generic, Show)

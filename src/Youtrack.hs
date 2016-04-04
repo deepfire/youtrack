@@ -84,7 +84,6 @@ import           Data.Aeson.Types            (Options (..))
 import           Data.Scientific             (Scientific)
 import           Data.Time.LocalTime         (LocalTime (..), utcToLocalTime, hoursToTimeZone)
 import           Data.Time.Clock.POSIX       (posixSecondsToUTCTime)
-import           Network.HTTP.Client         (CookieJar)
 import           Network.Wreq                (FormParam((:=)))
 import           OpenSSL                     (withOpenSSL)
 import           OpenSSL.Session             (SSLContext)
@@ -98,8 +97,10 @@ import qualified Data.ByteString.UTF8         as BS
 import qualified Data.HashMap.Strict          as HM
 import qualified Data.Text                    as T
 import qualified Data.Vector                  as V
+import qualified Network.HTTP.Client          as HTTP
 import qualified Network.HTTP.Client.OpenSSL  as SSL
 import qualified Network.Wreq                 as WR
+import qualified Network.Wreq.Session         as WRS
 import qualified OpenSSL.Session              as SSL
 import qualified System.Environment
 import qualified Text.Parser.Char             as P
@@ -177,7 +178,7 @@ data YT where
     YT ∷ {
       access       ∷ Access
     , wreq_options ∷ WR.Options
-    , jar          ∷ CookieJar
+    , jar          ∷ HTTP.CookieJar
     } → YT
 
 complete_yt_access ∷ HASCALLSTACK Access → Maybe String → IO Access
@@ -187,18 +188,27 @@ complete_yt_access yta maipath = do
       Nothing        → error $ printf "ERROR: no password for username '%s' on host '%s'." (login yta) (hostname yta)
       Just (pass, _) → pure $ yta { password = Just pass }
 
-ytConnect ∷ HASCALLSTACK Access → Maybe String → IO YT
-ytConnect access maipath = do
+ytConnect ∷ HASCALLSTACK Access → Maybe String → Int → IO YT
+ytConnect access maipath timeout_msec = do
   full_access ← complete_yt_access access maipath
   let (Access host ssl_opts login (Just password)) = full_access
   let mkOpts c  = WR.defaults & ( (WR.manager .~ Left (SSL.opensslManagerSettings c))
+                                ∘ (WR.manager .~ Left (HTTP.defaultManagerSettings { HTTP.managerResponseTimeout = Just (timeout_msec * 1000) } ))
                                 ∘ (WR.auth ?~ WR.basicAuth (BS.fromString login) (BS.fromString password)))
       wreq_opts = mkOpts (setupSSLCtx ssl_opts)
   withOpenSSL $ do
-    r ← WR.postWith wreq_opts
-        ("https://" <> host <> "/rest/user/login")
-        ["login" := login, "password" := password]
-    pure $ YT access wreq_opts $ r ^. WR.responseCookieJar
+    -- let settings = HTTP.defaultManagerSettings
+    --                {managerResponseTimeout = Just (3 * oneSecond)}
+    -- Sess.withSessionControl Nothing settings
+    --         (\session -> do
+    --            resp <- Sess.getWith defaults session "http://httpbin.org/delay/5"
+    --            print resp)
+    WRS.withSessionControl Nothing wreq_opts
+           (\session → do
+              r ← WR.postWith wreq_opts
+                  ("https://" <> host <> "/rest/user/login")
+                  ["login" := login, "password" := password]
+              pure $ YT access wreq_opts $ r ^. WR.responseCookieJar)
 
 
 -- * Leaf types

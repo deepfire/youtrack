@@ -1,6 +1,6 @@
 { mkDerivation, aeson, base, base-unicode-symbols, bytestring
-, HsOpenSSL, http-client, http-client-openssl, lens, mtl, parsers
-, safe, scientific, stdenv, text, time, trifecta, unordered-containers
+, HsOpenSSL, http-client, http-client-openssl, lens, mtl, parsers, QuickCheck
+, safe, scientific, split, stdenv, text, time, trifecta, unordered-containers
 , utf8-string, vector, wreq
 }:
 mkDerivation {
@@ -9,7 +9,7 @@ mkDerivation {
   src = ./.;
   libraryHaskellDepends = [
     aeson base base-unicode-symbols bytestring HsOpenSSL http-client
-    http-client-openssl lens mtl parsers safe scientific text time trifecta
+    http-client-openssl lens mtl parsers QuickCheck safe scientific text split time trifecta
     unordered-containers utf8-string vector wreq
   ];
   homepage = "https://github.com/deepfire/youtrack";

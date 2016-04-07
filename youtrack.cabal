@@ -31,8 +31,10 @@ library
                      , lens >=4.0
                      , mtl >=2.0
                      , parsers >=0.12
+                     , QuickCheck >= 2.8
                      , safe >= 0.3
                      , scientific >=0.3
+                     , split >= 0.2
                      , text >=1.2
                      , time >=1.5
                      , trifecta >=1.5

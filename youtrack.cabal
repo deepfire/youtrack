@@ -19,7 +19,8 @@ source-repository head
   location: https://github.com/deepfire/youtrack.git
 
 library
-  exposed-modules:     Youtrack
+  exposed-modules:     Names
+                     , Youtrack
 
   build-depends:       aeson >=0.11
                      , base >=4.8

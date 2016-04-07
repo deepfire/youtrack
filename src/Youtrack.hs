@@ -28,8 +28,9 @@
 
 module Youtrack
     (
+      module Names
     -- * YT access
-      Access(..), YT, SSLOptions(..)
+    , Access(..), YT, SSLOptions(..)
     , ytConnect
 
     -- * Data model
@@ -81,6 +82,7 @@ import           Text.Printf                 (printf)
 import           Control.Lens         hiding (from)
 import           Data.Aeson                  (FromJSON (..), Value, (.:))
 import           Data.Aeson.Types            (Options (..))
+import           Data.List.Split             (splitOn)
 import           Data.Scientific             (Scientific)
 import           Data.Time.LocalTime         (LocalTime (..), utcToLocalTime, hoursToTimeZone)
 import           Data.Time.Clock.POSIX       (posixSecondsToUTCTime)
@@ -106,6 +108,10 @@ import qualified Text.Parser.Char             as P
 import qualified Text.Parser.Combinators      as P
 import qualified Text.Parser.Token            as P
 import qualified Text.Trifecta.Parser         as P
+
+
+-- Local imports
+import           Names
 
 
 -- * Credentials storage: ~/.authinfo (ex-hsauthinfo) -- TODO:
@@ -259,9 +265,12 @@ instance FromJSON      MLogin where
         Just (AE.String s) → pure ∘ MLogin $ T.unpack s
         _                  → fail $ printf "Not a ∈ login object: %s" $ show o
     parseJSON o             = fail $ printf "Not a ∈ login object: %s" $ show o
-newtype MFullName    = MFullName  { fromMFullName ∷ String } deriving (Generic, Show) -- XXX: should be derivable
-instance FromJSON      MFullName                    where parseJSON = AE.withObject "∈ full name" $ \o →
-                                                                      MFullName <$> o .: "value"
+newtype MFullName    = MFullName  { fromMFullName ∷ FullName } deriving (Eq, Generic, Ord, Show) -- XXX: should be derivable
+instance FromJSON      MFullName                    where parseJSON = AE.withObject "∈ full name" $ \o → do
+                                                                        str ← o .: "value"
+                                                                        let (familyname:givennametokens) = splitOn " " str
+                                                                            givenname = intercalate " " givennametokens
+                                                                        pure ∘ MFullName $ FullName (FamilyName familyname) (GivenName givenname)
 -- ("worktype",Object (fromList [("url",String "https://gra-tracker.ptsecurity.com/rest/admin/timetracking/worktype/38-3"),("name",String "Bughunt"),("id",String "38-3"),("autoAttached",Bool False)]))
 newtype WType        = WType      { fromWType ∷ String } deriving (Eq, Generic, Ord, Show)
 instance FromJSON      WType                        where parseJSON = AE.withObject "work type" $ \o →

@@ -208,7 +208,7 @@ recdrop1_from_JSON = AE.genericParseJSON (AE.defaultOptions { fieldLabelModifier
 
 newtype URLPath      = URLPath      { fromURLPath      ∷ String } deriving Show
 
-newtype Hours        = Hours      { fromHours ∷ Int }     deriving (Generic, Show, FromJSON)
+newtype Hours        = Hours      { fromHours ∷ Int }     deriving (Eq, Generic, Ord, Show, FromJSON)
 newtype Filter       = Filter     { fromFilter ∷ String }  deriving (Generic, Show)
 newtype Field        = Field      { field ∷ String } deriving (Generic, Show)
 
@@ -225,32 +225,32 @@ instance FromJSON      PAlias                        where parseJSON = newtype_f
 --     parseJSON v              = fail $ printf "unexpected value for a version list: %s" (show v)
 interpret_strdate ∷ T.Text → LocalTime
 interpret_strdate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Double → Integer) ∘ ((/ 1000.0) ∷ Double → Double) ∘ read ∘ T.unpack
-newtype PDate        = PDate      { fromPDate ∷ LocalTime } deriving (Generic, Show)
+newtype PDate        = PDate      { fromPDate ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
 instance FromJSON      PDate                         where parseJSON = AE.withText "date" $ \n → do
                                                                        pure ∘ PDate $ interpret_strdate n
-newtype ICreated     = ICreated   { fromICreated ∷ LocalTime } deriving (Generic, Show)
+newtype ICreated     = ICreated   { fromICreated ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
 instance FromJSON      ICreated                      where parseJSON = AE.withText "created date" $ \n → do
                                                                        pure ∘ ICreated $ interpret_strdate n
-newtype IId          = IId        { fromIId ∷ String }  deriving (Generic, Show)
+newtype IId          = IId        { fromIId ∷ String }  deriving (Eq, Generic, Ord, Show)
 instance FromJSON      IId                           where parseJSON = newtype_from_JSON
-newtype IPriority    = IPriority  { fromIPriority ∷ String }  deriving (Generic, Show)
+newtype IPriority    = IPriority  { fromIPriority ∷ String }  deriving (Eq, Generic, Ord, Show)
 instance FromJSON      IPriority                     where parseJSON = newtype_from_JSON
-newtype IResolved    = IResolved  { fromIResolved ∷ LocalTime } deriving (Generic, Show)
+newtype IResolved    = IResolved  { fromIResolved ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
 instance FromJSON      IResolved                     where parseJSON = AE.withText "resolved date" $ \n → do
                                                                         pure ∘ IResolved $ interpret_strdate n
-newtype IState       = IState     { fromIState ∷ String }  deriving (Generic, Show)
+newtype IState       = IState     { fromIState ∷ String }  deriving (Eq, Generic, Ord, Show)
 instance FromJSON      IState                        where parseJSON = newtype_from_JSON
 newtype ITag         = ITag       { fromITag ∷ String }  deriving (Generic, Show) -- XXX: should be derivable
 instance FromJSON      ITag                          where parseJSON = AE.withObject "issue tag" $ \o →
                                                                       ITag <$> o .: "value"
-newtype ITitle       = ITitle     { fromITitle ∷ String }  deriving (Generic, Show)
+newtype ITitle       = ITitle     { fromITitle ∷ String }  deriving (Eq, Generic, Ord, Show)
 instance FromJSON      ITitle                        where parseJSON = newtype_from_JSON
-newtype IType        = IType      { fromIType ∷ String  } deriving (Generic, Show)
+newtype IType        = IType      { fromIType ∷ String  } deriving (Eq, Generic, Ord, Show)
 instance FromJSON      IType                         where parseJSON = newtype_from_JSON
-newtype IUpdated     = IUpdated   { fromIUpdated ∷ LocalTime } deriving (Generic, Show)
+newtype IUpdated     = IUpdated   { fromIUpdated ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
 instance FromJSON      IUpdated                      where parseJSON = AE.withText "updated date" $ \n → do
                                                                         pure ∘ IUpdated $ interpret_strdate n
-newtype MLogin       = MLogin     { fromMLogin ∷ String }  deriving (Generic, Show, Eq)
+newtype MLogin       = MLogin     { fromMLogin ∷ String }  deriving (Eq, Generic, Ord, Show)
 instance FromJSON      MLogin where
     parseJSON (AE.String s) = pure ∘ MLogin $ T.unpack s
     -- ,("author",Object (fromList [("ringId",String "58694c6b-d9cd-4ab1-bae4-e01db8516d44"),("url",String "https://gra-tracker.ptsecurity.com/rest/admin/user/skovalev"),("login",String "skovalev")]))
@@ -263,7 +263,7 @@ newtype MFullName    = MFullName  { fromMFullName ∷ String } deriving (Generic
 instance FromJSON      MFullName                    where parseJSON = AE.withObject "∈ full name" $ \o →
                                                                       MFullName <$> o .: "value"
 -- ("worktype",Object (fromList [("url",String "https://gra-tracker.ptsecurity.com/rest/admin/timetracking/worktype/38-3"),("name",String "Bughunt"),("id",String "38-3"),("autoAttached",Bool False)]))
-newtype WType        = WType      { fromWType ∷ String } deriving (Generic, Show)
+newtype WType        = WType      { fromWType ∷ String } deriving (Eq, Generic, Ord, Show)
 instance FromJSON      WType                        where parseJSON = AE.withObject "work type" $ \o →
                                                                       WType <$> o .: "name"
 
@@ -281,6 +281,8 @@ data ILink =
     deriving (Generic, Show)
 instance FromJSON   ILink                       where parseJSON = recdrop1_from_JSON
 
+
+-- * JSON debug assists
 abbrev_object ∷ Value → Value
 abbrev_object (AE.Object omap) = AE.Object $ (flip HM.mapWithKey) omap
                                              (\k v → case k of

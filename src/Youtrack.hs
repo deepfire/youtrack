@@ -45,7 +45,7 @@ module Youtrack
 
     -- * Request model
     , EProjectAll(..), EIssueByProject(..), EIssue(..), EIssueTTWItem(..)
-    , URLPath(..)
+    , URLPath(..), ExchangeType(..)
     , Exchange(..)
     , Request(..)
     , Filter(..), Field(..)
@@ -479,12 +479,20 @@ instance FromJSON    (Reader Project WorkItem) where { parseJSON
 
 
 -- * Generic Exchange/RR (request/response) machinery
+data ExchangeType = Get | Post
+
 class (ShowC (Request q), JSONC (Response q)) ⇒ Exchange q where
-    data Request  q   ∷ *
-    type Response q   ∷ *
-    request_urlpath   ∷ Request q → URLPath
-    request_params    ∷ Request q → WR.Options → WR.Options
-    request_params _  = id
+    data Request  q     ∷ *
+    type Response q     ∷ *
+    request_type        ∷ Request q → ExchangeType
+    request_params      ∷ Request q → WR.Options → WR.Options
+    request_type      _ = Get
+    request_params    _ = id
+    -- Mandatory method:
+    request_urlpath     ∷ Request q → URLPath
+    -- POST-only method:
+    request_post_args   ∷ Request q → [WR.FormParam]
+    request_post_args _ = []
 type family   JSONC c ∷ Constraint
 type instance JSONC c = (Generic c, FromJSON c)
 type family   ShowC c ∷ Constraint
@@ -557,7 +565,10 @@ ytRequestRaw (YT (Access hostname ssl_opts _ _) wreq_opts jar) req = do
       params = request_params req
       opts   = wreq_opts & (WR.header "Accept" .~ ["application/json"]) & params
   -- printf "--> %s %s\n" url (show $ opts ^. WR.params )
-  r ← withOpenSSL (WR.getWith opts url)
+  r ← withOpenSSL $
+      case request_type req of
+        Get  → WR.getWith  opts url
+        Post → WR.postWith opts url $ request_post_args req
   -- printf "<-- %s\n" $ show $ r ^. WR.responseBody
   pure $ r ^. WR.responseBody
 

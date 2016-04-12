@@ -435,8 +435,8 @@ instance FromJSON (Reader Project Issue) where
         author ∷ String  ← get $ field "reporterName"
         assignee ∷ Maybe String
                          ← mget $ field "Assignee"
-        state            ← get $ field "State"
-        let _state       = head $ state <|> [IState "No State"] -- XXX: per-project defaulting
+        state            ← mget $ field "State"
+        let _state       = head $ (fromMaybe [] state) <|> [IState "No State"] -- XXX: per-project defaulting
         PDate _created   ← get $ field "created"
         resolved         ← mget $ field "resolved"
         let _resolved    = fmap fromPDate resolved

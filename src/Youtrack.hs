@@ -38,9 +38,9 @@ module Youtrack
     --
     , MLogin(..), MFullName (..)
     , PAlias(..), PName(..), PDate(..)
-    , IId(..), IType(..), IPriority(..), ITitle(..), IState(..), ITag(..), ILink(..)
-    , ICreated(..), IResolved(..), IUpdated(..)
-    , WDate(..), WType(..)
+    , IId(..), Type(..), Priority(..), Summary(..), Description(..), State(..), Tag(..), Link(..)
+    , Created(..), Resolved(..), Updated(..)
+    , Performed(..), Activity(..)
     , Hours(..)
 
     -- * Request model
@@ -236,28 +236,30 @@ interpret_strdate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime
 newtype PDate        = PDate      { fromPDate ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
 instance FromJSON      PDate                         where parseJSON = AE.withText "date" $ \n → do
                                                                        pure ∘ PDate $ interpret_strdate n
-newtype ICreated     = ICreated   { fromICreated ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
-instance FromJSON      ICreated                      where parseJSON = AE.withText "created date" $ \n → do
-                                                                       pure ∘ ICreated $ interpret_strdate n
+newtype Created      = Created   { fromCreated ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
+instance FromJSON      Created                      where parseJSON = AE.withText "created date" $ \n → do
+                                                                       pure ∘ Created $ interpret_strdate n
 newtype IId          = IId        { fromIId ∷ String }  deriving (Eq, Generic, Ord, Show)
 instance FromJSON      IId                           where parseJSON = newtype_from_JSON
-newtype IPriority    = IPriority  { fromIPriority ∷ String }  deriving (Eq, Generic, Ord, Show)
-instance FromJSON      IPriority                     where parseJSON = newtype_from_JSON
-newtype IResolved    = IResolved  { fromIResolved ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
-instance FromJSON      IResolved                     where parseJSON = AE.withText "resolved date" $ \n → do
-                                                                        pure ∘ IResolved $ interpret_strdate n
-newtype IState       = IState     { fromIState ∷ String }  deriving (Eq, Generic, Ord, Show)
-instance FromJSON      IState                        where parseJSON = newtype_from_JSON
-newtype ITag         = ITag       { fromITag ∷ String }  deriving (Generic, Show) -- XXX: should be derivable
-instance FromJSON      ITag                          where parseJSON = AE.withObject "issue tag" $ \o →
-                                                                      ITag <$> o .: "value"
-newtype ITitle       = ITitle     { fromITitle ∷ String }  deriving (Eq, Generic, Ord, Show)
-instance FromJSON      ITitle                        where parseJSON = newtype_from_JSON
-newtype IType        = IType      { fromIType ∷ String  } deriving (Eq, Generic, Ord, Show)
-instance FromJSON      IType                         where parseJSON = newtype_from_JSON
-newtype IUpdated     = IUpdated   { fromIUpdated ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
-instance FromJSON      IUpdated                      where parseJSON = AE.withText "updated date" $ \n → do
-                                                                        pure ∘ IUpdated $ interpret_strdate n
+newtype Priority     = Priority  { fromPriority ∷ String }  deriving (Eq, Generic, Ord, Show)
+instance FromJSON      Priority                     where parseJSON = newtype_from_JSON
+newtype Resolved     = Resolved  { fromResolved ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
+instance FromJSON      Resolved                     where parseJSON = AE.withText "resolved date" $ \n → do
+                                                                        pure ∘ Resolved $ interpret_strdate n
+newtype State        = State     { fromState ∷ String }  deriving (Eq, Generic, Ord, Show)
+instance FromJSON      State                        where parseJSON = newtype_from_JSON
+newtype Tag          = Tag       { fromTag ∷ String }  deriving (Generic, Show) -- XXX: should be derivable
+instance FromJSON      Tag                          where parseJSON = AE.withObject "issue tag" $ \o →
+                                                                      Tag <$> o .: "value"
+newtype Summary      = Summary     { fromSummary ∷ String }      deriving (Eq, Generic, Ord, Show)
+instance FromJSON      Summary                                   where parseJSON = newtype_from_JSON
+newtype Description  = Description { fromDescription ∷ String }  deriving (Eq, Generic, Ord, Show)
+instance FromJSON      Description                               where parseJSON = newtype_from_JSON
+newtype Type         = Type      { fromType ∷ String  } deriving (Eq, Generic, Ord, Show)
+instance FromJSON      Type                         where parseJSON = newtype_from_JSON
+newtype Updated      = Updated   { fromUpdated ∷ LocalTime } deriving (Eq, Generic, Ord, Show)
+instance FromJSON      Updated                      where parseJSON = AE.withText "updated date" $ \n → do
+                                                                        pure ∘ Updated $ interpret_strdate n
 newtype MLogin       = MLogin     { fromMLogin ∷ String }  deriving (Eq, Generic, Ord, Show)
 instance FromJSON      MLogin where
     parseJSON (AE.String s) = pure ∘ MLogin $ T.unpack s
@@ -274,23 +276,23 @@ instance FromJSON      MFullName                    where parseJSON = AE.withObj
                                                                             givenname = intercalate " " givennametokens
                                                                         pure ∘ MFullName $ FullName (FamilyName familyname) (GivenName givenname)
 -- ("worktype",Object (fromList [("url",String "https://gra-tracker.ptsecurity.com/rest/admin/timetracking/worktype/38-3"),("name",String "Bughunt"),("id",String "38-3"),("autoAttached",Bool False)]))
-newtype WType        = WType      { fromWType ∷ String } deriving (Eq, Generic, Ord, Show)
-instance FromJSON      WType                        where parseJSON = AE.withObject "work type" $ \o →
-                                                                      WType <$> o .: "name"
+newtype Activity        = Activity      { fromActivity ∷ String } deriving (Eq, Generic, Ord, Show)
+instance FromJSON      Activity                        where parseJSON = AE.withObject "work type" $ \o →
+                                                                      Activity <$> o .: "name"
 
 interpret_scidate ∷ Scientific → LocalTime
 interpret_scidate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Scientific → Integer) ∘ (/ 1000)
-newtype WDate        = WDate      { fromWDate ∷ LocalTime } deriving (Generic, Show, Eq, Ord)
-instance FromJSON      WDate                        where parseJSON = AE.withScientific "work date" $ \n → do
-                                                                        pure ∘ WDate $ interpret_scidate n
-                                                                      -- WDate <$> (interpret_wdate $ o .: "name")
+newtype Performed        = Performed      { fromPerformed ∷ LocalTime } deriving (Generic, Show, Eq, Ord)
+instance FromJSON      Performed                        where parseJSON = AE.withScientific "work date" $ \n → do
+                                                                        pure ∘ Performed $ interpret_scidate n
+                                                                      -- Performed <$> (interpret_wdate $ o .: "name")
 
-data ILink =
-    ILink { _value ∷ String
+data Link =
+    Link { _value ∷ String
           , _role  ∷ String
           , _type  ∷ String }
     deriving (Generic, Show)
-instance FromJSON   ILink                       where parseJSON = recdrop1_from_JSON
+instance FromJSON   Link                       where parseJSON = recdrop1_from_JSON
 
 
 -- * JSON debug assists
@@ -324,27 +326,27 @@ data Member =
 data Issue =
     Issue {
       issue_id              ∷ IId
-    , issue_summary         ∷ ITitle
-    , issue_type            ∷ IType        --
-    , issue_priority        ∷ IPriority    --
+    , issue_summary         ∷ Summary
+    , issue_type            ∷ Type        --
+    , issue_priority        ∷ Priority    --
     , issue_author          ∷ Member
     , issue_assignee        ∷ Maybe Member --
-    , issue_state           ∷ IState       --
+    , issue_state           ∷ State       --
     , issue_created         ∷ LocalTime
     , issue_resolved        ∷ Maybe LocalTime
     , issue_updated         ∷ LocalTime
     , issue_estimation      ∷ Maybe Hours  --
-    , issue_description     ∷ Maybe String
+    , issue_description     ∷ Maybe Description
     , issue_votes           ∷ Int
-    , issue_links           ∷ [ILink]
-    , issue_tags            ∷ [ITag]
+    , issue_links           ∷ [Link]
+    , issue_tags            ∷ [Tag]
     , issue_fields          ∷ HM.HashMap T.Text AE.Value
     } deriving (Generic, Show)
 
 data WorkItem =
     WorkItem {
       workitem_id           ∷ String
-    , workitem_type         ∷ Maybe WType
+    , workitem_activity     ∷ Maybe Activity
     , workitem_date         ∷ LocalTime
     , workitem_author       ∷ Member
     , workitem_duration     ∷ Hours
@@ -429,14 +431,14 @@ instance FromJSON (Reader Project Issue) where
         (iid ∷ String)        ← get $ field "numberInProject"
         issue_summary         ← get $ field "summary"
         types                 ← mget $ field "Type"
-        let issue_type        = head $ (fromMaybe [] types) <|> [IType "No Type"] -- XXX: per-project defaulting
+        let issue_type        = head $ (fromMaybe [] types) <|> [Type "No Type"] -- XXX: per-project defaulting
         priority              ← mget $ field "Priority"
-        let issue_priority    = head $ (fromMaybe [IPriority "No Priority"] priority)
+        let issue_priority    = head $ (fromMaybe [Priority "No Priority"] priority)
         author ∷ String       ← get $ field "reporterName"
         assignee ∷ Maybe String
                               ← mget $ field "Assignee"
         state                 ← mget $ field "State"
-        let issue_state       = head $ (fromMaybe [] state) <|> [IState "No State"] -- XXX: per-project defaulting
+        let issue_state       = head $ (fromMaybe [] state) <|> [State "No State"] -- XXX: per-project defaulting
         PDate issue_created   ← get $ field "created"
         resolved              ← mget $ field "resolved"
         let issue_resolved    = fmap fromPDate resolved
@@ -465,13 +467,13 @@ instance FromJSON (Reader Project Issue) where
 instance FromJSON    (Reader Project WorkItem) where { parseJSON
     = AE.withObject "WorkItem" $
       \o → do
-        workitem_id            ← o .: "id"
-        workitem_type          ← o .: "worktype"
-        WDate workitem_date    ← o .: "date"
-        author                 ← o .: "author"
-        (duration ∷ Int)       ← o .: "duration"
-        let workitem_duration  = Hours ∘ floor $ (fromIntegral duration / 60.0 ∷ Double)
-        workitem_description   ← o .: "description"
+        workitem_id             ← o .: "id"
+        workitem_activity       ← o .: "worktype"
+        Performed workitem_date ← o .: "date"
+        author                  ← o .: "author"
+        (duration ∷ Int)        ← o .: "duration"
+        let workitem_duration   = Hours ∘ floor $ (fromIntegral duration / 60.0 ∷ Double)
+        workitem_description    ← o .: "description"
         pure $ do
              Project{ project_members } ← ask
              let workitem_author = lookup_member project_members author

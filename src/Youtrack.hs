@@ -44,7 +44,8 @@ module Youtrack
     , Hours(..)
 
     -- * Request model
-    , Exchanges(..), Exchange(..)
+    , EProjectAll(..), EIssueByProject(..), EIssue(..), EIssueTTWItem(..)
+    , Exchange(..)
     , Request(..)
     , Filter(..), Field(..)
 
@@ -477,7 +478,7 @@ instance FromJSON    (Reader Project WorkItem) where { parseJSON
 
 
 -- * Generic Exchange/RR (request/response) machinery
-class (ShowC (Request q), JSONC (Response q)) ⇒ Exchange (q ∷ Exchanges) where
+class (ShowC (Request q), JSONC (Response q)) ⇒ Exchange q where
     data Request  q   ∷ *
     type Response q   ∷ *
     request_urlpath   ∷ Request q → URLPath
@@ -488,18 +489,17 @@ type instance JSONC c = (Generic c, FromJSON c)
 type family   ShowC c ∷ Constraint
 type instance ShowC c = (Show c)
 
-data Exchanges
-    = EProjectAll
-    | EIssueByProject
-    | EIssue
-    | EIssueTTWItem
+data EProjectAll     = EProjectAll
+data EIssueByProject = EIssueByProject
+data EIssue          = EIssue
+data EIssueTTWItem   = EIssueTTWItem
 
 
 -- * /project/all?{verbose}
 --   https://confluence.jetbrains.com/display/YTD65/Get+Accessible+Projects
-instance Exchange 'EProjectAll where
-    data   Request  'EProjectAll  = RProjectAll deriving Show
-    type   Response 'EProjectAll  = [Project]
+instance Exchange EProjectAll where
+    data   Request  EProjectAll  = RProjectAll deriving Show
+    type   Response EProjectAll  = [Project]
     request_urlpath RProjectAll =
         URLPath "/project/all"
     request_params  RProjectAll params =
@@ -526,9 +526,9 @@ instance Exchange 'EProjectAll where
 --   https://confluence.jetbrains.com/display/YTD65/Get+the+List+of+Issues
 newtype RIssueWrapper = RIssueWrapper { issue ∷ [Reader Project Issue] } deriving (Generic)
 instance FromJSON       RIssueWrapper where parseJSON = newtype_from_JSON
-instance Exchange 'EIssue where
-    data   Request  'EIssue = RIssue Filter {-ignored-} Int {-ignored-} [Field] deriving Show
-    type   Response 'EIssue = [Reader Project Issue]
+instance Exchange EIssue where
+    data   Request  EIssue = RIssue Filter {-ignored-} Int {-ignored-} [Field] deriving Show
+    type   Response EIssue = [Reader Project Issue]
     request_urlpath (RIssue _ _ _) =
         URLPath $ "/issue"
     request_params  (RIssue (Filter query) limit fields) params =
@@ -541,9 +541,9 @@ instance Exchange 'EIssue where
 
 -- *  /issue/{issue}/timetracking/workitem/
 --   https://confluence.jetbrains.com/display/YTD65/Get+Available+Work+Items+of+Issue
-instance Exchange 'EIssueTTWItem where
-    data   Request  'EIssueTTWItem  = RIssueTTWItem IId deriving Show
-    type   Response 'EIssueTTWItem  = [Reader Project WorkItem]
+instance Exchange EIssueTTWItem where
+    data   Request  EIssueTTWItem  = RIssueTTWItem IId deriving Show
+    type   Response EIssueTTWItem  = [Reader Project WorkItem]
     request_urlpath (RIssueTTWItem (IId iid)) =
         URLPath $ "/issue/" <> iid <> "/timetracking/workitem/"
 

@@ -45,6 +45,7 @@ module Youtrack
 
     -- * Request model
     , EProjectAll(..), EIssueByProject(..), EIssue(..), EIssueTTWItem(..)
+    , URLPath(..)
     , Exchange(..)
     , Request(..)
     , Filter(..), Field(..)
@@ -213,7 +214,7 @@ newtype_from_JSON,recdrop1_from_JSON ∷ (Generic a, AE.GFromJSON (Rep a)) ⇒ V
 newtype_from_JSON  = AE.genericParseJSON (AE.defaultOptions { unwrapUnaryRecords = True })
 recdrop1_from_JSON = AE.genericParseJSON (AE.defaultOptions { fieldLabelModifier = drop 1 })
 
-newtype URLPath      = URLPath      { fromURLPath      ∷ String } deriving Show
+newtype URLPath      = URLPath    { fromURLPath      ∷ String } deriving Show
 
 newtype Hours        = Hours      { fromHours ∷ Int }     deriving (Eq, Generic, Ord, Show, FromJSON)
 newtype Filter       = Filter     { fromFilter ∷ String }  deriving (Generic, Show)

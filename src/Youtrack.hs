@@ -308,47 +308,47 @@ abbrev_object x               = x
 
 data Project =
     Project {
-      _alias               ∷ PAlias
-    , _name                ∷ PName
-    , _members             ∷ [Member] -- initially empty
+      project_alias         ∷ PAlias
+    , project_name          ∷ PName
+    , project_members       ∷ [Member] -- initially empty
     } deriving (Generic, Show)
 
 data Member =
     Member {
-      _login               ∷ MLogin
-    , _fullname            ∷ MFullName
+      member_login          ∷ MLogin
+    , member_fullname       ∷ MFullName
     } deriving (Generic, Show)
 
 -- XXX: hard-coded assumptions about project issue structure
 --      ..to be resolved by "2014 Bahr - Composing and Decomposing Data Types"
 data Issue =
     Issue {
-      _id                  ∷ IId
-    , _summary             ∷ ITitle
-    , _itype               ∷ IType        --
-    , _priority            ∷ IPriority    --
-    , _author              ∷ Member
-    , _assignee            ∷ Maybe Member --
-    , _state               ∷ IState       --
-    , _created             ∷ LocalTime
-    , _resolved            ∷ Maybe LocalTime
-    , _updated             ∷ LocalTime
-    , _estimation          ∷ Maybe Hours  --
-    , _description         ∷ Maybe String
-    , _votes               ∷ Int
-    , _links               ∷ [ILink]
-    , _tags                ∷ [ITag]
-    , _fields              ∷ HM.HashMap T.Text AE.Value
+      issue_id              ∷ IId
+    , issue_summary         ∷ ITitle
+    , issue_type            ∷ IType        --
+    , issue_priority        ∷ IPriority    --
+    , issue_author          ∷ Member
+    , issue_assignee        ∷ Maybe Member --
+    , issue_state           ∷ IState       --
+    , issue_created         ∷ LocalTime
+    , issue_resolved        ∷ Maybe LocalTime
+    , issue_updated         ∷ LocalTime
+    , issue_estimation      ∷ Maybe Hours  --
+    , issue_description     ∷ Maybe String
+    , issue_votes           ∷ Int
+    , issue_links           ∷ [ILink]
+    , issue_tags            ∷ [ITag]
+    , issue_fields          ∷ HM.HashMap T.Text AE.Value
     } deriving (Generic, Show)
 
 data WorkItem =
     WorkItem {
-      _wid                 ∷ String
-    , _wtype               ∷ Maybe WType
-    , _wdate               ∷ LocalTime
-    , _wauthor             ∷ Member
-    , _wduration           ∷ Hours
-    , _wdescription        ∷ Maybe String
+      workitem_id           ∷ String
+    , workitem_type         ∷ Maybe WType
+    , workitem_date         ∷ LocalTime
+    , workitem_author       ∷ Member
+    , workitem_duration     ∷ Hours
+    , workitem_description  ∷ Maybe String
     } deriving (Generic, Show)
 
 -- data Label (l ∷ Symbol) = Get
@@ -365,11 +365,11 @@ data WorkItem =
 instance FromJSON    Project where { parseJSON
     = AE.withObject "Project" $
       \o → do
-        _alias               ← o .: "shortName"
-        _name                ← o .: "name"
+        project_alias        ← o .: "shortName"
+        project_name         ← o .: "name"
         logins ∷ [MLogin]    ← o .: "assigneesLogin"
         names  ∷ [MFullName] ← o .: "assigneesFullName"
-        let _members = fmap (\(l, n) → Member l n) $ zip logins names
+        let project_members = fmap (\(l, n) → Member l n) $ zip logins names
         pure Project{..}; }
 
 value_map_lookup ∷ String → HM.HashMap T.Text AE.Value → T.Text → AE.Value
@@ -383,7 +383,7 @@ value_lookup desc key val =
     error $ printf "while looking for key %s in %s: got non-object %s" (show key) desc $ show val
 
 lookup_member ∷ [Member] → MLogin → Member
-lookup_member ms ((flip find) ms ∘ (\l m → l ≡ _login m) → Just m) = m
+lookup_member ms ((flip find) ms ∘ (\l m → l ≡ member_login m) → Just m) = m
 lookup_member _ ml = error $ printf "Couldn't find project ∈ with login name '%s'." $ fromMLogin ml
 
 instance FromJSON ([Reader Project Issue]) where
@@ -426,55 +426,55 @@ instance FromJSON (Reader Project Issue) where
                           AE.Success res' → pure res'
                           AE.Error   e    → fail $ printf "while parsing field %s: %s, obj=%s" fld e (show val)
                   _   → fail $ missing "field" $ T.unpack fld
-        (iid ∷ String)   ← get $ field "numberInProject"
-        _summary         ← get $ field "summary"
-        types            ← mget $ field "Type"
-        let _itype       = head $ (fromMaybe [] types) <|> [IType "No Type"] -- XXX: per-project defaulting
-        priority         ← mget $ field "Priority"
-        let _priority    = head $ (fromMaybe [IPriority "No Priority"] priority)
-        author ∷ String  ← get $ field "reporterName"
+        (iid ∷ String)        ← get $ field "numberInProject"
+        issue_summary         ← get $ field "summary"
+        types                 ← mget $ field "Type"
+        let issue_type        = head $ (fromMaybe [] types) <|> [IType "No Type"] -- XXX: per-project defaulting
+        priority              ← mget $ field "Priority"
+        let issue_priority    = head $ (fromMaybe [IPriority "No Priority"] priority)
+        author ∷ String       ← get $ field "reporterName"
         assignee ∷ Maybe String
-                         ← mget $ field "Assignee"
-        state            ← mget $ field "State"
-        let _state       = head $ (fromMaybe [] state) <|> [IState "No State"] -- XXX: per-project defaulting
-        PDate _created   ← get $ field "created"
-        resolved         ← mget $ field "resolved"
-        let _resolved    = fmap fromPDate resolved
-        PDate _updated   ← get $ field "updated"
-        _description     ← mget $ field "description"
+                              ← mget $ field "Assignee"
+        state                 ← mget $ field "State"
+        let issue_state       = head $ (fromMaybe [] state) <|> [IState "No State"] -- XXX: per-project defaulting
+        PDate issue_created   ← get $ field "created"
+        resolved              ← mget $ field "resolved"
+        let issue_resolved    = fmap fromPDate resolved
+        PDate issue_updated   ← get $ field "updated"
+        issue_description     ← mget $ field "description"
         estimation ∷ Maybe [String]
-                         ← mget $ field "Estimation"
-        let _estimation  = fmap (Hours ∘ read) $ headMay $ fromMaybe [] estimation
-        votes            ← mget $ field "votes"
-        let _votes       = fromMaybe 0 votes
-        links            ← mget $ field "links"
-        let _links       = fromMaybe [] links
-        _tags            ← o .: "tag"
+                              ← mget $ field "Estimation"
+        let issue_estimation  = fmap (Hours ∘ read) $ headMay $ fromMaybe [] estimation
+        votes                 ← mget $ field "votes"
+        let issue_votes       = fromMaybe 0 votes
+        links                 ← mget $ field "links"
+        let issue_links       = fromMaybe [] links
+        issue_tags            ← o .: "tag"
         pure $ do
-              Project{ _alias, _members } ← ask
-              let _id        = IId $ printf "%s-%s" (fromPAlias _alias) iid
-                  _author    = lookup_member _members $ MLogin author
-                  _assignee  = fmap (lookup_member _members ∘ MLogin) assignee
+              Project{ project_alias, project_members } ← ask
+              let issue_id       = IId $ printf "%s-%s" (fromPAlias project_alias) iid
+                  issue_author   = lookup_member project_members $ MLogin author
+                  issue_assignee = fmap (lookup_member project_members ∘ MLogin) assignee
                   handled_fields = ["numberInProject", "summary", "Type", "Priority", "reporterName"
                                    , "Assignee", "State", "created", "resolved", "updated", "description"
                                    , "Estimation", "votes", "links", "tag"]
-                  _fields    = HM.filterWithKey (\k _ → not $ (∈) k handled_fields) fields
+                  issue_fields   = HM.filterWithKey (\k _ → not $ (∈) k handled_fields) fields
               pure Issue{..}
         -- let fields = constrFields $ head $ dataTypeConstrs (dataTypeOf ((⊥) ∷ IFields))
 
 instance FromJSON    (Reader Project WorkItem) where { parseJSON
     = AE.withObject "WorkItem" $
       \o → do
-        _wid             ← o .: "id"
-        _wtype           ← o .: "worktype"
-        WDate _wdate     ← o .: "date"
-        author           ← o .: "author"
-        (duration ∷ Int) ← o .: "duration"
-        let _wduration   = Hours ∘ floor $ (fromIntegral duration / 60.0 ∷ Double)
-        _wdescription    ← o .: "description"
+        workitem_id            ← o .: "id"
+        workitem_type          ← o .: "worktype"
+        WDate workitem_date    ← o .: "date"
+        author                 ← o .: "author"
+        (duration ∷ Int)       ← o .: "duration"
+        let workitem_duration  = Hours ∘ floor $ (fromIntegral duration / 60.0 ∷ Double)
+        workitem_description   ← o .: "description"
         pure $ do
-             Project{ _members } ← ask
-             let _wauthor = lookup_member _members author
+             Project{ project_members } ← ask
+             let workitem_author = lookup_member project_members author
              pure WorkItem{..}; }
 
 

@@ -6,18 +6,18 @@
 *.o_p
 *.hi
 *.dyn*
-yt-request-*
-dist
 *.swp
 
-.stack-work
-cabal-dev/
-.hsenv/
 .cabal-sandbox/
-cabal.sandbox.config
-Setup.hs
-
-nohup.out
+.hsenv/
+.stack-work/
+cabal-dev/
+dist/
 JSONTypes.hs
+Setup.hs
+cabal.sandbox.config
+core
+nohup.out
+yt-request-*
 
 *.csv

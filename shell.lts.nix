@@ -1,4 +1,4 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "lts-5_8" }:
+{ nixpkgs ? import <nixpkgs> {}, compiler ? "lts-5_11" }:
 
 let
 
@@ -13,7 +13,6 @@ let
     overrides = with haskell.lib; new: old:
     let parent = (oldArgs.overrides or (_: _: {})) new old;
     in parent // {
-      aeson          = old.aeson_0_11_1_1;
     };
   });
 

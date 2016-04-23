@@ -14,7 +14,8 @@ module Names
     )
 where
 
-import           GHC.Generics                (Generic(Rep))
+import           GHC.Generics                (Generic)
+import           Data.Function               (on)
 import           Data.Monoid
 import           Data.String
 import           Test.QuickCheck
@@ -26,7 +27,11 @@ newtype GivenName  = GivenName  { fromGivenName  ∷ String } deriving (Eq, Gene
 data  FullName
     = FullName { familyName ∷ FamilyName
                , givenName  ∷ GivenName }
-      deriving (Eq, Generic, Ord)
+      deriving (Eq, Generic)
+instance Ord FullName where
+    compare x y = case (compare `on` familyName) x y of
+                    EQ  → (compare `on` givenName) x y
+                    ord → ord
 
 instance Arbitrary FamilyName where  arbitrary = elements family_names
 instance Arbitrary GivenName  where  arbitrary = elements given_names

@@ -330,7 +330,7 @@ data Issue =
     , issue_type            ∷ Type        --
     , issue_priority        ∷ Priority    --
     , issue_author          ∷ Member
-    , issue_assignee        ∷ Maybe Member --
+    , issue_assignee        ∷ [Member] --
     , issue_state           ∷ State       --
     , issue_created         ∷ LocalTime
     , issue_resolved        ∷ Maybe LocalTime
@@ -435,7 +435,7 @@ instance FromJSON (Reader Project Issue) where
         priority              ← mget $ field "Priority"
         let issue_priority    = head $ (fromMaybe [Priority "No Priority"] priority)
         author ∷ String       ← get $ field "reporterName"
-        assignee ∷ Maybe String
+        assignee ∷ Maybe [MLogin]
                               ← mget $ field "Assignee"
         state                 ← mget $ field "State"
         let issue_state       = head $ (fromMaybe [] state) <|> [State "No State"] -- XXX: per-project defaulting
@@ -456,7 +456,7 @@ instance FromJSON (Reader Project Issue) where
               Project{ project_alias, project_members } ← ask
               let issue_id       = IId $ printf "%s-%s" (fromPAlias project_alias) iid
                   issue_author   = lookup_member project_members $ MLogin author
-                  issue_assignee = fmap (lookup_member project_members ∘ MLogin) assignee
+                  issue_assignee = fmap (lookup_member project_members) $ fromMaybe [] assignee
                   handled_fields = ["numberInProject", "summary", "Type", "Priority", "reporterName"
                                    , "Assignee", "State", "created", "resolved", "updated", "description"
                                    , "Estimation", "votes", "links", "tag"]

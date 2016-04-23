@@ -1,6 +1,6 @@
 name:                youtrack
 copyright:           Copyright (c) 2016 Kosyrev Serge
-version:             0.0.4
+version:             0.0.5
 synopsis:            Access a Jetbrains YouTrack instance.
 homepage:            https://github.com/deepfire/youtrack
 bug-reports:         https://github.com/deepfire/youtrack/issues

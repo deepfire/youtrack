@@ -163,7 +163,7 @@ data SSLOptions = SSLOptions {
     , optionsCaCert     ∷ FilePath
     } deriving (Eq, Show)
 
-setupSSLCtx ∷ HASCALLSTACK SSLOptions → IO SSLContext
+setupSSLCtx ∷ SSLOptions → IO SSLContext
 setupSSLCtx (SSLOptions _ caCert) = do
   ctx ← SSL.context
   SSL.contextSetCertificateFile ctx caCert
@@ -563,7 +563,7 @@ instance Exchange EIssueTTWItem where
 
 
 -- * Request IO machinery
-ytRequestRaw ∷ HASCALLSTACK (Exchange y) ⇒ YT → Request y → IO BL.ByteString
+ytRequestRaw ∷ (Exchange y) ⇒ YT → Request y → IO BL.ByteString
 ytRequestRaw (YT (Access hostname ssl_opts _ _) wreq_opts jar) req = do
   let url    = "https://" <> hostname <> "/rest" <> (fromURLPath $ request_urlpath req)
       params = request_params req

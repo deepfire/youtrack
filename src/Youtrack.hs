@@ -56,6 +56,11 @@ module Youtrack
     , ytRequest
     , ytSaveJSON, ytLoadJSON
     , ytLoadJSONValue, ytLoadRequest
+
+    -- * Custom fromJSON aids
+    , youtrack_datestring_localtime
+    , value_map_lookup
+    , lookup_member
     )
 where
 
@@ -231,21 +236,21 @@ instance FromJSON      PAlias                                      where parseJS
 --     parseJSON (AE.Null)      = pure $ PVersionList []
 --     parseJSON v@(AE.Array _) = AE.genericParseJSON AE.defaultOptions v
 --     parseJSON v              = fail $ printf "unexpected value for a version list: %s" (show v)
-interpret_strdate ∷ T.Text → LocalTime
-interpret_strdate = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Double → Integer) ∘ ((/ 1000.0) ∷ Double → Double) ∘ read ∘ T.unpack
+youtrack_datestring_localtime ∷ T.Text → LocalTime
+youtrack_datestring_localtime = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Double → Integer) ∘ ((/ 1000.0) ∷ Double → Double) ∘ read ∘ T.unpack
 newtype PDate        = PDate         { fromPDate ∷ LocalTime }     deriving (Eq, Generic, Ord)
 instance FromJSON      PDate                                       where parseJSON = AE.withText "date" $ \n → do
-                                                                                       pure ∘ PDate $ interpret_strdate n
+                                                                                       pure ∘ PDate $ youtrack_datestring_localtime n
 newtype Created      = Created       { fromCreated ∷ LocalTime }   deriving (Eq, Generic, Ord)
 instance FromJSON      Created                                     where parseJSON = AE.withText "created date" $ \n → do
-                                                                                       pure ∘ Created $ interpret_strdate n
+                                                                                       pure ∘ Created $ youtrack_datestring_localtime n
 newtype IId          = IId           { fromIId ∷ String }          deriving (Eq, Generic, Ord)
 instance FromJSON      IId                                         where parseJSON = newtype_from_JSON
 newtype Priority     = Priority      { fromPriority ∷ String }     deriving (Eq, Generic, Ord)
 instance FromJSON      Priority                                    where parseJSON = newtype_from_JSON
 newtype Resolved     = Resolved      { fromResolved ∷ LocalTime }  deriving (Eq, Generic, Ord)
 instance FromJSON      Resolved                                    where parseJSON = AE.withText "resolved date" $ \n → do
-                                                                                       pure ∘ Resolved $ interpret_strdate n
+                                                                                       pure ∘ Resolved $ youtrack_datestring_localtime n
 newtype State        = State         { fromState ∷ String }        deriving (Eq, Generic, Ord)
 instance FromJSON      State                                       where parseJSON = newtype_from_JSON
 newtype Tag          = Tag           { fromTag ∷ String }          deriving (Generic) -- XXX: should be derivable
@@ -259,7 +264,7 @@ newtype Type         = Type          { fromType ∷ String  }        deriving (E
 instance FromJSON      Type                                        where parseJSON = newtype_from_JSON
 newtype Updated      = Updated       { fromUpdated ∷ LocalTime }   deriving (Eq, Generic, Ord)
 instance FromJSON      Updated                                     where parseJSON = AE.withText "updated date" $ \n → do
-                                                                                       pure ∘ Updated $ interpret_strdate n
+                                                                                       pure ∘ Updated $ youtrack_datestring_localtime n
 newtype MLogin       = MLogin        { fromMLogin ∷ String }       deriving (Eq, Generic, Ord)
 instance FromJSON      MLogin                                      where
     parseJSON (AE.String s) = pure ∘ MLogin $ T.unpack s

@@ -34,7 +34,11 @@ module Youtrack
     , ytConnect
 
     -- * Data model
+    , ProjectDict, lookup_project
     , Member(..), Project(..), Issue(..), WorkItem(..)
+    , palias_iid_idstr
+    , issue_idstr
+    , identify_issue
     --
     , MLogin(..), MFullName (..)
     , PAlias(..), PName(..), PDate(..)
@@ -58,7 +62,7 @@ module Youtrack
     , ytLoadJSONValue, ytLoadRequest
 
     -- * Custom fromJSON aids
-    , youtrack_datestring_localtime
+    , youtrack_timeint_localtime, youtrack_datestring_localtime
     , value_map_lookup
     , lookup_member
     )
@@ -89,6 +93,7 @@ import           Text.Printf                 (printf)
 import           Control.Lens         hiding (from)
 import           Data.Aeson                  (FromJSON (..), Value, (.:))
 import           Data.Aeson.Types            (Options (..))
+import           Data.Hashable               (Hashable)
 import           Data.List.Split             (splitOn)
 import           Data.Scientific             (Scientific)
 import           Data.Time.LocalTime         (LocalTime (..), utcToLocalTime, hoursToTimeZone)
@@ -225,10 +230,6 @@ newtype Hours        = Hours         { fromHours ∷ Int }           deriving (E
 newtype Filter       = Filter        { fromFilter ∷ String }       deriving (Generic)
 newtype Field        = Field         { field ∷ String }            deriving (Generic)
 
-newtype PName        = PName         { fromPName ∷ String }        deriving (Generic)
-instance FromJSON      PName                                       where parseJSON = newtype_from_JSON
-newtype PAlias       = PAlias        { fromPAlias ∷ String }       deriving (Generic, Read)
-instance FromJSON      PAlias                                      where parseJSON = newtype_from_JSON
 -- newtype PVersion     = PVersion   { fromPVersion ∷ String }     deriving (Generic)
 -- instance FromJSON      PVersion                                 where parseJSON = newtype_from_JSON
 -- newtype PVersionList = PVersionList [String]                    deriving (Generic)
@@ -236,15 +237,17 @@ instance FromJSON      PAlias                                      where parseJS
 --     parseJSON (AE.Null)      = pure $ PVersionList []
 --     parseJSON v@(AE.Array _) = AE.genericParseJSON AE.defaultOptions v
 --     parseJSON v              = fail $ printf "unexpected value for a version list: %s" (show v)
+youtrack_timeint_localtime ∷ Integer → LocalTime
+youtrack_timeint_localtime = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Double → Integer) ∘ ((/ 1000.0) ∷ Double → Double) ∘ fromIntegral
 youtrack_datestring_localtime ∷ T.Text → LocalTime
-youtrack_datestring_localtime = utcToLocalTime (hoursToTimeZone 4) ∘ posixSecondsToUTCTime ∘ fromIntegral ∘ (floor ∷ Double → Integer) ∘ ((/ 1000.0) ∷ Double → Double) ∘ read ∘ T.unpack
+youtrack_datestring_localtime = youtrack_timeint_localtime ∘ read ∘ T.unpack
 newtype PDate        = PDate         { fromPDate ∷ LocalTime }     deriving (Eq, Generic, Ord)
 instance FromJSON      PDate                                       where parseJSON = AE.withText "date" $ \n → do
                                                                                        pure ∘ PDate $ youtrack_datestring_localtime n
 newtype Created      = Created       { fromCreated ∷ LocalTime }   deriving (Eq, Generic, Ord)
 instance FromJSON      Created                                     where parseJSON = AE.withText "created date" $ \n → do
                                                                                        pure ∘ Created $ youtrack_datestring_localtime n
-newtype IId          = IId           { fromIId ∷ String }          deriving (Eq, Generic, Ord)
+newtype IId          = IId           { fromIId ∷ Int }             deriving (Eq, Generic, Ord)
 instance FromJSON      IId                                         where parseJSON = newtype_from_JSON
 newtype Priority     = Priority      { fromPriority ∷ String }     deriving (Eq, Generic, Ord)
 instance FromJSON      Priority                                    where parseJSON = newtype_from_JSON
@@ -313,6 +316,11 @@ abbrev_object x               = x
 
 -- * Data model
 
+newtype PName        = PName         { fromPName ∷ String }        deriving (Generic)
+newtype PAlias       = PAlias        { fromPAlias ∷ String }       deriving (Eq, Generic, Hashable, Read)
+instance FromJSON      PName                                       where parseJSON = newtype_from_JSON
+instance FromJSON      PAlias                                      where parseJSON = newtype_from_JSON
+
 data Project =
     Project {
       project_alias         ∷ PAlias
@@ -330,7 +338,8 @@ data Member =
 --      ..to be resolved by "2014 Bahr - Composing and Decomposing Data Types"
 data Issue =
     Issue {
-      issue_id              ∷ IId
+      issue_project         ∷ Project
+    , issue_id              ∷ IId
     , issue_summary         ∷ Summary
     , issue_type            ∷ Type        --
     , issue_priority        ∷ Priority    --
@@ -357,6 +366,17 @@ data WorkItem =
     , workitem_duration     ∷ Hours
     , workitem_description  ∷ Maybe String
     } deriving (Generic)
+
+palias_iid_idstr ∷ PAlias → IId → String
+palias_iid_idstr PAlias{..} IId{..} = fromPAlias <> "-" <> show fromIId
+
+issue_idstr ∷ Issue → String
+issue_idstr Issue{..} = palias_iid_idstr (project_alias issue_project) issue_id
+
+identify_issue ∷ PAlias → IId → Issue → Bool
+identify_issue pa iid Issue{..} =
+    iid ≡ issue_id ∧
+    pa  ≡ project_alias issue_project 
 
 -- data Label (l ∷ Symbol) = Get
 -- class Has a l b | a l → b where
@@ -393,13 +413,20 @@ lookup_member ∷ [Member] → MLogin → Member
 lookup_member ms ((flip find) ms ∘ (\l m → l ≡ member_login m) → Just m) = m
 lookup_member _ ml = error $ printf "Couldn't find project ∈ with login name '%s'." $ fromMLogin ml
 
-instance FromJSON ([Reader Project Issue]) where
+lookup_project ∷ ProjectDict → PAlias → Project
+lookup_project pd key@(PAlias keys) =
+    flip fromMaybe (HM.lookup key pd) $
+         error $ printf "Unknown project '%s'." keys
+
+type ProjectDict = HM.HashMap PAlias Project
+
+instance FromJSON ([Reader ProjectDict Issue]) where
     parseJSON = AE.withObject "Issue wrapper" $
        \o → case value_map_lookup "Issue list" o "issue" of
               AE.Array xs → forM (V.toList xs) parseJSON
               erx         → error $ printf "Not an issue list in the 'value' element of issue list."
 
-instance FromJSON (Reader Project Issue) where
+instance FromJSON (Reader ProjectDict Issue) where
     parseJSON = AE.withObject "Issue" $
        \o → do
         let fields ∷ HM.HashMap T.Text AE.Value
@@ -433,7 +460,8 @@ instance FromJSON (Reader Project Issue) where
                           AE.Success res' → pure res'
                           AE.Error   e    → fail $ printf "while parsing field %s: %s, obj=%s" fld e (show val)
                   _   → fail $ missing "field" $ T.unpack fld
-        (iid ∷ String)        ← get $ field "numberInProject"
+        palias ∷ PAlias       ← get $ field "projectShortName"
+        iid ∷ Int             ← fmap read ∘ get $ field "numberInProject"
         issue_summary         ← get $ field "summary"
         types                 ← mget $ field "Type"
         let issue_type        = head $ (fromMaybe [] types) <|> [Type "No Type"] -- XXX: per-project defaulting
@@ -458,8 +486,9 @@ instance FromJSON (Reader Project Issue) where
         let issue_links       = fromMaybe [] links
         issue_tags            ← o .: "tag"
         pure $ do
-              Project{ project_alias, project_members } ← ask
-              let issue_id       = IId $ printf "%s-%s" (fromPAlias project_alias) iid
+              projdict ← ask
+              let issue_project@Project{ project_alias, project_members } = lookup_project projdict palias
+                  issue_id       = IId iid
                   issue_author   = lookup_member project_members $ MLogin author
                   issue_assignee = fmap (lookup_member project_members) $ fromMaybe [] assignee
                   handled_fields = ["numberInProject", "summary", "Type", "Priority", "reporterName"
@@ -468,6 +497,12 @@ instance FromJSON (Reader Project Issue) where
                   issue_fields   = HM.filterWithKey (\k _ → not $ (∈) k handled_fields) fields
               pure Issue{..}
         -- let fields = constrFields $ head $ dataTypeConstrs (dataTypeOf ((⊥) ∷ IFields))
+
+mandatoryIssueFields ∷ [String]
+mandatoryIssueFields =
+    [ "projectShortName", "numberInProject", "summary", "reporterName"
+    , "created", "resolved", "updated", "description"
+    , "votes", "links", "tag"]
 
 instance FromJSON    (Reader Project WorkItem) where { parseJSON
     = AE.withObject "WorkItem" $
@@ -542,11 +577,11 @@ instance Exchange EProjectAll where
 
 -- * /issue?{filter}&{with}&{max}&{after}
 --   https://confluence.jetbrains.com/display/YTD65/Get+the+List+of+Issues
-newtype RIssueWrapper = RIssueWrapper { issue ∷ [Reader Project Issue] } deriving (Generic)
+newtype RIssueWrapper = RIssueWrapper { issue ∷ [Reader ProjectDict Issue] } deriving (Generic)
 instance FromJSON       RIssueWrapper where parseJSON = newtype_from_JSON
 instance Exchange EIssue where
     data   Request  EIssue = RIssue Filter {-ignored-} Int {-ignored-} [Field]
-    type   Response EIssue = [Reader Project Issue]
+    type   Response EIssue = [Reader ProjectDict Issue]
     request_urlpath (RIssue _ _ _) =
         URLPath $ "/issue"
     request_params  (RIssue (Filter query) limit fields) params =
@@ -560,10 +595,10 @@ instance Exchange EIssue where
 -- *  /issue/{issue}/timetracking/workitem/
 --   https://confluence.jetbrains.com/display/YTD65/Get+Available+Work+Items+of+Issue
 instance Exchange EIssueTTWItem where
-    data   Request  EIssueTTWItem  = RIssueTTWItem IId
+    data   Request  EIssueTTWItem  = RIssueTTWItem PAlias IId
     type   Response EIssueTTWItem  = [Reader Project WorkItem]
-    request_urlpath (RIssueTTWItem (IId iid)) =
-        URLPath $ "/issue/" <> iid <> "/timetracking/workitem/"
+    request_urlpath (RIssueTTWItem palias iid) =
+        URLPath $ "/issue/" <> palias_iid_idstr palias iid <> "/timetracking/workitem/"
 
 
 

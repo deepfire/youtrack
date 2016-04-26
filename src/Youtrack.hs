@@ -538,7 +538,7 @@ class JSONC (Response q) ⇒ Exchange q where
 instance Exchange q ⇒ Show (Request q) where
     show x = printf "#{Request %s / %s}" (show $ request_urlpath x) (show $ request_post_args x)
 type family   JSONC c ∷ Constraint
-type instance JSONC c = (Generic c, FromJSON c)
+type instance JSONC c = (FromJSON c)
 type family   ShowC c ∷ Constraint
 type instance ShowC c = (Show c)
 
@@ -622,7 +622,7 @@ ytDecode bs = do
     Left e     → error e
     Right resp → pure resp
 
-ytRequest ∷ HASCALLSTACK (Exchange y, FromJSON (Response y)) ⇒ YT → Request y → IO (Response y)
+ytRequest ∷ HASCALLSTACK (Exchange y) ⇒ YT → Request y → IO (Response y)
 ytRequest yt req =
     ytRequestRaw yt req >>=
     ytDecode
@@ -639,5 +639,5 @@ ytLoadJSON req =
 
 ytLoadJSONValue ∷ (Exchange y) ⇒ Request y → IO Value
 ytLoadJSONValue = ytLoadJSON
-ytLoadRequest ∷ (Exchange y, FromJSON (Response y)) ⇒ Request y → IO (Response y)
+ytLoadRequest ∷ (Exchange y) ⇒ Request y → IO (Response y)
 ytLoadRequest = ytLoadJSON

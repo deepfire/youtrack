@@ -30,7 +30,7 @@ module Youtrack
     (
       module Names
     -- * YT access
-    , Access(..), YT, SSLOptions(..)
+    , YT, SSLOptions(..)
     , ytConnect
 
     -- * Data model
@@ -183,40 +183,36 @@ setupSSLCtx (SSLOptions _ caCert) = do
 
 
 -- * Accessing YouTrack
-data Access where
-    Access ∷ {
-      hostname ∷ String
-    , ssl_opts ∷ SSLOptions
-    , login    ∷ String
-    , password ∷ Maybe String
-    } → Access
+data Credentials where
+     Credentials ∷
+         { login        ∷ MLogin
+         , password     ∷ Maybe String
+         } → Credentials
 
 data YT where
-    YT ∷ {
-      access       ∷ Access
-    , wreq_options ∷ WR.Options
-    , jar          ∷ CookieJar
-    } → YT
+     YT ∷
+         { ytHostname    ∷ String
+         , ytRestSuffix  ∷ String
+         , ytSSLOptions  ∷ SSLOptions
+         , ytWreqOptions ∷ WR.Options
+         , ytLogin       ∷ MLogin
+         , ytJar         ∷ Maybe CookieJar
+         } → YT
 
-complete_yt_access ∷ HASCALLSTACK Access → Maybe String → IO Access
-complete_yt_access yta maipath = do
-    macc ← getPassword maipath (hostname yta) (login yta)
-    case macc of
-      Nothing        → error $ printf "ERROR: no password for username '%s' on host '%s'." (login yta) (hostname yta)
-      Just (pass, _) → pure $ yta { password = Just pass }
-
-ytConnect ∷ HASCALLSTACK Access → Maybe String → IO YT
-ytConnect access maipath = do
-  full_access ← complete_yt_access access maipath
-  let (Access host ssl_opts login (Just password)) = full_access
+ytConnect ∷ HASCALLSTACK YT → Maybe String → IO YT
+ytConnect yt@YT{..} maipath = do
+  maypass ← getPassword maipath ytHostname $ fromMLogin ytLogin
+  let password = fst ∘ (flip fromMaybe) maypass $
+                 error $ printf "ERROR: no password for username '%s' on host '%s'." (fromMLogin ytLogin) ytHostname
   let mkOpts c  = WR.defaults & ( (WR.manager .~ Left (SSL.opensslManagerSettings c))
-                                ∘ (WR.auth ?~ WR.basicAuth (BS.fromString login) (BS.fromString password)))
-      wreq_opts = mkOpts (setupSSLCtx ssl_opts)
+                                ∘ (WR.auth ?~ WR.basicAuth (BS.fromString ∘ fromMLogin $ ytLogin) (BS.fromString password)))
+      wreq_opts = mkOpts (setupSSLCtx ytSSLOptions)
   withOpenSSL $ do
     r ← WR.postWith wreq_opts
-        ("https://" <> host <> "/rest/user/login")
-        ["login" := login, "password" := password]
-    pure $ YT access wreq_opts $ r ^. WR.responseCookieJar
+        ("https://" <> ytHostname <> ytRestSuffix <> "/user/login")
+        ["login" := (fromMLogin ytLogin), "password" := password]
+    pure $ yt { ytWreqOptions = wreq_opts
+              , ytJar         = Just $ r ^. WR.responseCookieJar }
 
 
 -- * Leaf types
@@ -602,12 +598,12 @@ instance Exchange EIssueTTWItem where
 
 
 
--- * Request IO machinery
+-- * YT request machinery
 ytRequestRaw ∷ (Exchange y) ⇒ YT → Request y → IO BL.ByteString
-ytRequestRaw (YT (Access hostname ssl_opts _ _) wreq_opts jar) req = do
-  let url    = "https://" <> hostname <> "/rest" <> (fromURLPath $ request_urlpath req)
+ytRequestRaw YT{..} req = do
+  let url    = "https://" <> ytHostname <> ytRestSuffix <> (fromURLPath $ request_urlpath req)
       params = request_params req
-      opts   = wreq_opts & (WR.header "Accept" .~ ["application/json"]) & params
+      opts   = ytWreqOptions & (WR.header "Accept" .~ ["application/json"]) & params
   -- printf "--> %s %s\n" url (show $ opts ^. WR.params )
   r ← withOpenSSL $
       case request_type req of

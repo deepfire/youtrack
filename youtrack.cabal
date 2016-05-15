@@ -20,6 +20,8 @@ source-repository head
 
 library
   exposed-modules:     Names
+                     , Types
+                     , Exchanges
                      , Youtrack
 
   build-depends:       aeson >=0.11

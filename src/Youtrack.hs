@@ -117,6 +117,7 @@ import qualified Network.HTTP.Client.OpenSSL  as SSL
 import qualified Network.Wreq                 as WR
 import qualified OpenSSL.Session              as SSL
 import qualified System.Environment
+import           Test.QuickCheck
 import qualified Text.Parser.Char             as P
 import qualified Text.Parser.Combinators      as P
 import qualified Text.Parser.Token            as P
@@ -199,6 +200,12 @@ data YT where
          , ytLogin       ∷ MLogin
          , ytJar         ∷ Maybe CookieJar
          } → YT
+
+instance Arbitrary YT where
+    arbitrary = YT <$> arbitrary <*> arbitrary
+                <*> (error "Youtrack is not accessible: no SSL options available.")
+                <*> (error "Youtrack is not accessible: no Wreq options available.")
+                <*> (pure $ MLogin "nobody") <*> pure Nothing
 
 ytConnect ∷ HASCALLSTACK YT → Maybe String → IO YT
 ytConnect yt@YT{..} maipath = do

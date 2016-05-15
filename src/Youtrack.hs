@@ -60,6 +60,8 @@ module Youtrack
     , ytRequest
     , ytSaveJSON, ytLoadJSON
     , ytLoadJSONValue --, ytLoadRequest
+    -- Slightly higher level:
+    , projectRequest
 
     -- * Custom fromJSON aids
     , youtrack_timeint_localtime, youtrack_datestring_localtime
@@ -648,6 +650,10 @@ ytRequest yt ctx req = do
   raw ← ytRequestRaw yt req
   ctxless ← ytDecode raw
   pure $ fmap ((flip runReader) ctx) ctxless
+
+projectRequest ∷ HASCALLSTACK (Exchange y) ⇒ Project → Context y → Request y → IO (Response y)
+projectRequest Project{..} ctx req =
+  ytRequest project_yt ctx req
 
 ytSaveJSON ∷ (Exchange y) ⇒ YT → Request y → IO ()
 ytSaveJSON yt req =

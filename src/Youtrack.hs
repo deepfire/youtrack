@@ -24,7 +24,8 @@
 #else
 #   define HASCALLSTACK
 #endif
-{-# OPTIONS_GHC -fno-warn-unused-binds -fno-warn-unused-matches -fno-warn-unused-do-bind #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds -fno-warn-unused-matches -fno-warn-unused-do-bind -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Youtrack
     (
@@ -78,6 +79,7 @@ import           Control.Monad.Reader
 import           Data.List
 import           Data.Maybe                  (fromMaybe)
 import           Data.Monoid                 ((<>))
+import           Data.String                 (IsString(..))
 import           GHC.Exts                    (Constraint)
 import           GHC.Generics                (Generic(Rep))
 #if (__GLASGOW_HASKELL__ > 710)
@@ -93,7 +95,7 @@ import           Text.Printf                 (printf)
 
 -- External imports
 import           Control.Lens         hiding (from, Context)
-import           Data.Aeson                  (FromJSON (..), Value, (.:))
+import           Data.Aeson                  (FromJSON (..), Value, (.:), (.:?))
 import           Data.Aeson.Types            (Options (..))
 import           Data.Hashable               (Hashable)
 import           Data.List.Split             (splitOn)
@@ -234,6 +236,9 @@ newtype URLPath      = URLPath       { fromURLPath      ∷ String } deriving Sh
 newtype Hours        = Hours         { fromHours ∷ Int }           deriving (Eq, Generic, Ord, FromJSON)
 newtype Filter       = Filter        { fromFilter ∷ String }       deriving (Generic)
 newtype Field        = Field         { field ∷ String }            deriving (Generic)
+
+newtype YTCmd        = YTCmd         { _fromYTCmd ∷ String }       deriving (Eq, Generic, Show)
+instance IsString      YTCmd          where fromString = YTCmd
 
 -- newtype PVersion     = PVersion   { fromPVersion ∷ String }     deriving (Generic)
 -- instance FromJSON      PVersion                                 where parseJSON = newtype_from_JSON
@@ -383,7 +388,7 @@ issue_idstr Issue{..} = palias_iid_idstr (project_alias issue_project) issue_id
 identify_issue ∷ PAlias → IId → Issue → Bool
 identify_issue pa iid Issue{..} =
     iid ≡ issue_id ∧
-    pa  ≡ project_alias issue_project 
+    pa  ≡ project_alias issue_project
 
 -- data Label (l ∷ Symbol) = Get
 -- class Has a l b | a l → b where
@@ -395,6 +400,9 @@ identify_issue pa iid Issue{..} =
 
 
 -- * FromJSON
+
+instance FromJSON (ReaderT () Identity ()) where
+    parseJSON _ = pure $ pure ()
 
 instance FromJSON (Reader YT Project) where { parseJSON
     = AE.withObject "Project" $
@@ -622,6 +630,66 @@ instance Exchange EIssueTTWItem where
     type   Reply    EIssueTTWItem  = WorkItem
     request_urlpath (RIssueTTWItem palias iid) =
         URLPath $ "/issue/" <> palias_iid_idstr palias iid <> "/timetracking/workitem/"
+
+
+-- * POST /issue/{issue}/execute?{command}&{comment}&{group}&{disableNotifications}&{runAs}
+--   https://confluence.jetbrains.com/display/YTD65/Apply+Command+to+an+Issue
+data EIssueExecute
+instance Exchange EIssueExecute where
+    type Context  EIssueExecute    = ()
+    data Request  EIssueExecute    = RIssueExecute PAlias IId YTCmd Bool | RIssuePostComment PAlias IId String
+    type Replies  EIssueExecute    = Identity
+    type Reply    EIssueExecute    = ()
+    request_type                 _ = Post
+    request_urlpath r = let p_i = case r of RIssueExecute     pal' iid' _ _ → (pal', iid')
+                                            RIssuePostComment pal' iid' _   → (pal', iid')
+                        in URLPath $ "/issue/" <> palias_iid_idstr (fst p_i) (snd p_i) <> "/execute"
+    request_post_args (RIssueExecute _ _ (YTCmd cmd) quiet) = [ "command" := T.pack cmd, "disableNotifications" := (T.pack $ if quiet then "true" else "false") ]
+    request_post_args (RIssuePostComment _ _ comment)       = [ "comment" := T.pack comment ]
+
+
+-- * POST /issue/{issueID}?{summary}&{description}
+--   https://confluence.jetbrains.com/display/YTD65/Update+an+Issue
+data EIssueUpdate
+instance Exchange EIssueUpdate where
+    type Context  EIssueUpdate     = ()
+    data Request  EIssueUpdate     = RIssueUpdate PAlias IId Summary Description
+    type Replies  EIssueUpdate     = Identity
+    type Reply    EIssueUpdate     = ()
+    request_type                 _ = Post
+    request_urlpath (RIssueUpdate pal iid _ _) =
+        URLPath $ "/issue/" <> palias_iid_idstr pal iid
+    request_post_args (RIssueUpdate _ _ summ desc) = [ "summary"     := (T.pack $ fromSummary     summ)
+                                                     , "description" := (T.pack $ fromDescription desc) ]
+
+
+-- * GET /rest/issue/{issue}/comment&{wikifyDescription}
+--   https://confluence.jetbrains.com/display/YTD65/Get+Comments+of+an+Issue
+data EIssueComments
+instance Exchange EIssueComments where
+    type Context  EIssueComments   = Project
+    data Request  EIssueComments   = RIssueComments PAlias IId
+    type Replies  EIssueComments   = []
+    type Reply    EIssueComments   = Comment
+    request_urlpath (RIssueComments pal iid) =
+        URLPath $ "/issue/" <> palias_iid_idstr pal iid  <> "/comment"
+
+data  Comment
+    = Comment { comm_author  ∷ Member
+              , comm_created ∷ LocalTime
+              , comm_updated ∷ Maybe LocalTime
+              , comm_text    ∷ String }
+
+instance FromJSON (Reader Project Comment)
+    where parseJSON = AE.withObject "Comment" $ \o → do
+            comm_text ∷ String ← fmap T.unpack $ o .: "text"
+            comm_created ← fmap youtrack_timeint_localtime        $ o .:  "created"
+            comm_updated ← fmap (fmap youtrack_timeint_localtime) $ o .:? "updated"
+            author       ← o .: "author"
+            pure $ do
+              Project{..} ← ask
+              let comm_author = lookup_member project_members $ MLogin author
+              pure Comment{..}
 
 
 

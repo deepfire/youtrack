@@ -382,20 +382,21 @@ mandatoryIssueFields =
 
 
 data  Comment
-    = Comment { comm_author  ∷ Member
+    = Comment { comm_issue   ∷ Issue
+              , comm_author  ∷ Member
               , comm_created ∷ LocalTime
               , comm_updated ∷ Maybe LocalTime
               , comm_text    ∷ String }
 
-instance FromJSON (Reader Project Comment)
+instance FromJSON (Reader Issue Comment)
     where parseJSON = AE.withObject "Comment" $ \o → do
             comm_text ∷ String ← fmap T.unpack $ o .: "text"
             comm_created ← fmap youtrack_timeint_localtime        $ o .:  "created"
             comm_updated ← fmap (fmap youtrack_timeint_localtime) $ o .:? "updated"
             author       ← o .: "author"
             pure $ do
-              Project{..} ← ask
-              let comm_author = lookup_member project_members $ MLogin author
+              comm_issue@Issue{..} ← ask
+              let comm_author = lookup_member (project_members issue_project) $ MLogin author
               pure Comment{..}
 
 

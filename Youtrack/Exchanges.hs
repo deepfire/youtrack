@@ -178,7 +178,7 @@ instance Exchange EIssueUpdate where
 --   https://confluence.jetbrains.com/display/YTD65/Get+Comments+of+an+Issue
 data              EIssueComments
 instance Exchange EIssueComments where
-    type Context  EIssueComments   = Project
+    type Context  EIssueComments   = Issue
     data Request  EIssueComments   = RIssueComments PAlias IId
     type Replies  EIssueComments   = []
     type Reply    EIssueComments   = Comment

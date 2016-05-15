@@ -29,9 +29,9 @@
 
 module Youtrack
     (
-      module Exchanges
-    , module Names
-    , module Types
+      module Youtrack.Exchanges
+    , module Youtrack.Names
+    , module Youtrack.Types
 
     -- * YT access
     , ytConnect, SSLOptions(..)
@@ -79,9 +79,9 @@ import           Text.Printf                 (printf)
 
 -- Local imports
 import           Authinfo                    (getPassword)
-import           Exchanges
-import           Names
-import           Types
+import           Youtrack.Exchanges
+import           Youtrack.Names
+import           Youtrack.Types
 
 
 -- * SSL shenanigans

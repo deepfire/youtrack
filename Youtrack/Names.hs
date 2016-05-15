@@ -4,7 +4,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE UnicodeSyntax #-}
 
-module Names
+module Youtrack.Names
     ( FamilyName(..)
     , GivenName(..)
     , FullName(..)

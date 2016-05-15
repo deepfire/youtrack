@@ -18,7 +18,7 @@
 {-# LANGUAGE UndecidableSuperClasses #-}
 #endif
 
-module Exchanges
+module Youtrack.Exchanges
     (
       Exchange(..)
     , ExchangeType(..)
@@ -46,7 +46,7 @@ import qualified Network.Wreq                 as WR
 import           Prelude.Unicode
 import           Text.Printf                 (printf)
 
-import           Types
+import           Youtrack.Types
 
 
 -- * Generic Exchange/RR (request/response) machinery

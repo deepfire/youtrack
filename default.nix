@@ -5,7 +5,7 @@
 }:
 mkDerivation {
   pname = "youtrack";
-  version = "0.0.5";
+  version = "0.0.6";
   src = ./.;
   libraryHaskellDepends = [
     aeson base base-unicode-symbols bytestring HsOpenSSL http-client

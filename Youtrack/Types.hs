@@ -15,7 +15,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 #endif
 
-module Types
+module Youtrack.Types
     (
       YT(..), Credentials(..)
 
@@ -77,7 +77,7 @@ import qualified Data.Text                    as T
 import qualified Data.Vector                  as V
 import qualified Network.Wreq                 as WR
 
-import           Names
+import           Youtrack.Names
 
 
 -- * JSON stuff dump

@@ -1,4 +1,6 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "ghc801" }:
+{ nixpkgs ? import <nixpkgs> {}
+, compiler ? "ghc801"
+, with-cabal-install ? false }:
 
 let
 
@@ -7,12 +9,11 @@ let
   f = import ./.; # your default.nix
 
   haskell             = pkgs.haskell;
-  haskellPackagesOrig = haskell.packages.${compiler};
+  haskellPackages     = haskell.packages.${compiler};
 
-  haskellPackages     = import ../nixpkgs-haskellpackages-overrides/ghc801.nix
-                          pkgs haskell.packages.${compiler};
-
-  drv = haskellPackages.callPackage f {};
+  drv = haskellPackages.callPackage f {
+    with-cabal-install = with-cabal-install;
+  };
 
 in
 

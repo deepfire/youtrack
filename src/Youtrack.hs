@@ -30,7 +30,7 @@ module Youtrack
     (
       module Names
     -- * YT access
-    , YT, SSLOptions(..)
+    , YT(..), SSLOptions(..)
     , ytConnect
 
     -- * Data model
@@ -93,7 +93,6 @@ import           Text.Printf                 (printf)
 import           Control.Lens         hiding (from, Context)
 import           Data.Aeson                  (FromJSON (..), Value, (.:))
 import           Data.Aeson.Types            (Options (..))
-import           Data.Functor
 import           Data.Hashable               (Hashable)
 import           Data.List.Split             (splitOn)
 import           Data.Scientific             (Scientific)

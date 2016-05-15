@@ -59,7 +59,7 @@ module Youtrack
     , ytDecode
     , ytRequest
     , ytSaveJSON, ytLoadJSON
-    , ytLoadJSONValue, ytLoadRequest
+    , ytLoadJSONValue --, ytLoadRequest
 
     -- * Custom fromJSON aids
     , youtrack_timeint_localtime, youtrack_datestring_localtime
@@ -90,9 +90,10 @@ import           Text.Printf                 (printf)
 
 
 -- External imports
-import           Control.Lens         hiding (from)
+import           Control.Lens         hiding (from, Context)
 import           Data.Aeson                  (FromJSON (..), Value, (.:))
 import           Data.Aeson.Types            (Options (..))
+import           Data.Functor
 import           Data.Hashable               (Hashable)
 import           Data.List.Split             (splitOn)
 import           Data.Scientific             (Scientific)
@@ -319,9 +320,11 @@ instance FromJSON      PAlias                                      where parseJS
 
 data Project =
     Project {
-      project_alias         ∷ PAlias
+      project_yt            ∷ YT
+    , project_alias         ∷ PAlias
     , project_name          ∷ PName
     , project_members       ∷ [Member] -- initially empty
+    , project_accessor      ∷ Maybe Member
     } deriving (Generic)
 
 data Member =
@@ -385,7 +388,7 @@ identify_issue pa iid Issue{..} =
 
 -- * FromJSON
 
-instance FromJSON    Project where { parseJSON
+instance FromJSON (Reader YT Project) where { parseJSON
     = AE.withObject "Project" $
       \o → do
         project_alias        ← o .: "shortName"
@@ -393,7 +396,10 @@ instance FromJSON    Project where { parseJSON
         logins ∷ [MLogin]    ← o .: "assigneesLogin"
         names  ∷ [MFullName] ← o .: "assigneesFullName"
         let project_members = fmap (\(l, n) → Member l n) $ zip logins names
-        pure Project{..}; }
+        pure $ do
+             project_yt@YT{..} ← ask
+             let project_accessor = find (\Member{..} → ytLogin ≡ member_login) project_members
+             pure Project{..}; }
 
 value_map_lookup ∷ String → HM.HashMap T.Text AE.Value → T.Text → AE.Value
 value_map_lookup desc hm key =
@@ -519,9 +525,14 @@ instance FromJSON    (Reader Project WorkItem) where { parseJSON
 -- * Generic Exchange/RR (request/response) machinery
 data ExchangeType = Get | Post
 
-class JSONC (Response q) ⇒ Exchange q where
+type PreResponse q = Replies q (Reader (Context q) (Reply q))
+type    Response q = Replies q                     (Reply q)
+
+class (Functor (Replies q), JSONC (PreResponse q)) ⇒ Exchange q where
+    type Context  q     ∷ *
     data Request  q     ∷ *
-    type Response q     ∷ *
+    type Replies  q     ∷ * → *
+    type Reply    q     ∷ *
     request_type        ∷ Request q → ExchangeType
     request_params      ∷ Request q → WR.Options → WR.Options
     request_type      _ = Get
@@ -535,6 +546,8 @@ instance Exchange q ⇒ Show (Request q) where
     show x = printf "#{Request %s / %s}" (show $ request_urlpath x) (show $ request_post_args x)
 type family   JSONC c ∷ Constraint
 type instance JSONC c = (FromJSON c)
+type family   FunctorC (c ∷ * → *) ∷ Constraint
+type instance FunctorC c = (Functor c)
 type family   ShowC c ∷ Constraint
 type instance ShowC c = (Show c)
 
@@ -547,8 +560,10 @@ data EIssueTTWItem   = EIssueTTWItem
 -- * /project/all?{verbose}
 --   https://confluence.jetbrains.com/display/YTD65/Get+Accessible+Projects
 instance Exchange EProjectAll where
-    data   Request  EProjectAll  = RProjectAll
-    type   Response EProjectAll  = [Project]
+    type   Context  EProjectAll = YT
+    data   Request  EProjectAll = RProjectAll
+    type   Replies  EProjectAll = []
+    type   Reply    EProjectAll = Project
     request_urlpath RProjectAll =
         URLPath "/project/all"
     request_params  RProjectAll params =
@@ -576,8 +591,10 @@ instance Exchange EProjectAll where
 newtype RIssueWrapper = RIssueWrapper { issue ∷ [Reader ProjectDict Issue] } deriving (Generic)
 instance FromJSON       RIssueWrapper where parseJSON = newtype_from_JSON
 instance Exchange EIssue where
+    type   Context  EIssue = ProjectDict
     data   Request  EIssue = RIssue Filter {-ignored-} Int {-ignored-} [Field]
-    type   Response EIssue = [Reader ProjectDict Issue]
+    type   Replies  EIssue = []
+    type   Reply    EIssue = Issue
     request_urlpath (RIssue _ _ _) =
         URLPath $ "/issue"
     request_params  (RIssue (Filter query) limit fields) params =
@@ -591,8 +608,10 @@ instance Exchange EIssue where
 -- *  /issue/{issue}/timetracking/workitem/
 --   https://confluence.jetbrains.com/display/YTD65/Get+Available+Work+Items+of+Issue
 instance Exchange EIssueTTWItem where
+    type   Context  EIssueTTWItem  = Project
     data   Request  EIssueTTWItem  = RIssueTTWItem PAlias IId
-    type   Response EIssueTTWItem  = [Reader Project WorkItem]
+    type   Replies  EIssueTTWItem  = []
+    type   Reply    EIssueTTWItem  = WorkItem
     request_urlpath (RIssueTTWItem palias iid) =
         URLPath $ "/issue/" <> palias_iid_idstr palias iid <> "/timetracking/workitem/"
 
@@ -618,10 +637,11 @@ ytDecode bs = do
     Left e     → error e
     Right resp → pure resp
 
-ytRequest ∷ HASCALLSTACK (Exchange y) ⇒ YT → Request y → IO (Response y)
-ytRequest yt req =
-    ytRequestRaw yt req >>=
-    ytDecode
+ytRequest ∷ HASCALLSTACK (Exchange y) ⇒ YT → Context y → Request y → IO (Response y)
+ytRequest yt ctx req = do
+  raw ← ytRequestRaw yt req
+  ctxless ← ytDecode raw
+  pure $ fmap ((flip runReader) ctx) ctxless
 
 ytSaveJSON ∷ (Exchange y) ⇒ YT → Request y → IO ()
 ytSaveJSON yt req =
@@ -635,5 +655,5 @@ ytLoadJSON req =
 
 ytLoadJSONValue ∷ (Exchange y) ⇒ Request y → IO Value
 ytLoadJSONValue = ytLoadJSON
-ytLoadRequest ∷ (Exchange y) ⇒ Request y → IO (Response y)
-ytLoadRequest = ytLoadJSON
+-- ytLoadRequest ∷ (Exchange y) ⇒ Request y → IO (Response y)
+-- ytLoadRequest = ytLoadJSON

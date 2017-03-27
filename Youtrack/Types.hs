@@ -91,7 +91,7 @@ value_lookup desc key (AE.Object o) =
 value_lookup desc key val =
     error $ printf "while looking for key %s in %s: got non-object %s" (show key) desc $ show val
 
-newtype_from_JSON, recdrop1_from_JSON ∷ (Generic a, AE.GFromJSON (Rep a)) ⇒ Value → AE.Parser a
+newtype_from_JSON, recdrop1_from_JSON ∷ (Generic a, AE.GFromJSON AE.Zero (Rep a)) ⇒ Value → AE.Parser a
 newtype_from_JSON  = AE.genericParseJSON (AE.defaultOptions { unwrapUnaryRecords = True })
 recdrop1_from_JSON = AE.genericParseJSON (AE.defaultOptions { fieldLabelModifier = drop 1 })
 
@@ -274,7 +274,7 @@ type ProjectDict = HM.HashMap PAlias Project
 
 
 -- XXX: hard-coded assumptions about project issue structure
---      ..to be resolved by "2014 Bahr - Composing and Decomposing Data Types"
+--      ..to be resolved by "2014 Bahr - Composing and Decomposing Data Types" ?
 data Issue =
     Issue {
       issue_project         ∷ Project
@@ -296,7 +296,7 @@ data Issue =
     , issue_fields          ∷ HM.HashMap T.Text AE.Value
     } deriving (Generic)
 
-instance FromJSON ([Reader ProjectDict Issue]) where
+instance {-# OVERLAPS #-} FromJSON ([Reader ProjectDict Issue]) where
     parseJSON = AE.withObject "Issue wrapper" $
        \o → case value_map_lookup "Issue list" o "issue" of
               AE.Array xs → forM (V.toList xs) parseJSON

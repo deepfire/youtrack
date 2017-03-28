@@ -114,4 +114,4 @@ get_params =
                      <> long "login"   <> metavar "LOGIN"      <> mempty)))
      (  fullDesc
      <> progDesc "Correlate a local git repository and Youtrack project with Branch issue field."
-     <> header   "corr 0.0.7" ))
+     <> header   "corr 0.0.8" ))

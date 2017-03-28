@@ -6,7 +6,7 @@
 }:
 mkDerivation {
   pname = "youtrack";
-  version = "0.0.7";
+  version = "0.0.8";
   src = ./.;
   libraryHaskellDepends = [
     aeson base base-unicode-symbols bytestring

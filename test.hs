@@ -113,5 +113,5 @@ get_params =
        <*> strOption (help "YouTrack login"
                      <> long "login"   <> metavar "LOGIN"      <> mempty)))
      (  fullDesc
-     <> progDesc "Correlate a local git repository and Youtrack project with Branch issue field."
-     <> header   "corr 0.0.8" ))
+     <> progDesc "Perform a test query against some Youtrack instance."
+     <> header   "youtrack-test" ))

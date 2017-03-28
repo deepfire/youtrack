@@ -1,9 +1,6 @@
 language: nix
 sudo: false
 script: nix-build shell.nix
-cache:
-  directories:
-    - /nix
 matrix:
     include:
         - os: linux

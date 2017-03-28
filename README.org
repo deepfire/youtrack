@@ -13,10 +13,10 @@
      following piece by Domen Kožar:
      https://www.domenkozar.com/2015/09/27/friends-sometimes-let-friends-curl-to-shell/)
 
-  2. Obtain & build corr:
+  2. Obtain & build =youtrack=:
 
-     : git clone https://github.com/deepfire/corr
-     : cd corr
+     : git clone https://github.com/deepfire/youtrack
+     : cd youtrack
      : nix-env --no-build-output --cores 4 -iE 'f: (import ./shell.nix {})'
 
   3. Validate:

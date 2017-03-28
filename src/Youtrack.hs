@@ -104,7 +104,10 @@ ytConnect ∷ HASCALLSTACK YT → SSLOptions → Maybe String → IO YT
 ytConnect yt@YT{..} ssl_options maipath = do
   maypass ← getPassword maipath ytHostname $ fromMLogin ytLogin
   let password = fst ∘ (flip fromMaybe) maypass $
-                 error $ printf "ERROR: no password for username '%s' on host '%s'." (fromMLogin ytLogin) ytHostname
+                 error $ printf "ERROR: no password for username '%s' on host '%s' in %s." (fromMLogin ytLogin) ytHostname $
+                           case maipath ∷ Maybe FilePath of
+                             Nothing → "standard authinfo file" ∷ String
+                             Just x  → printf "authinfo file '%s'" x
   let mkOpts c  = WR.defaults & ( (WR.manager .~ Left (SSL.opensslManagerSettings c))
                                 ∘ (WR.auth ?~ WR.basicAuth (BS.fromString ∘ fromMLogin $ ytLogin) (BS.fromString password)))
       wreq_opts = mkOpts (setupSSLCtx ssl_options)

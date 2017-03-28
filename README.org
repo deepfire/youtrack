@@ -1,0 +1,25 @@
+* What
+  [[https://travis-ci.org/deepfire/youtrack/][https://api.travis-ci.org/deepfire/youtrack.svg?branch=master]]
+
+  /youtrack/ is a set of REST HTTP API bindings to JetBrains Youtrack instances.
+
+* Installation, using Nix
+
+  1. Install Nix:
+
+      bash <(curl https://nixos.org/nix/install)
+
+     If security implications of this particular step worry you, please read the
+     following piece by Domen Kožar:
+     https://www.domenkozar.com/2015/09/27/friends-sometimes-let-friends-curl-to-shell/)
+
+  2. Obtain & build corr:
+
+     : git clone https://github.com/deepfire/corr
+     : cd corr
+     : nix-env --no-build-output --cores 4 -iE 'f: (import ./shell.nix {})'
+
+  3. Validate:
+
+     : youtrack-test --help
+

@@ -1,0 +1,16 @@
+language: nix
+sudo: false
+script: nix-build shell.nix
+cache:
+  directories:
+    - /nix
+matrix:
+    include:
+        - os: linux
+          dist: trusty
+          compiler: ": #GHC 8.0.2"
+          env: GHCATTR=ghc802
+notifications:
+    email:
+        on_success: never
+        on_failure: change

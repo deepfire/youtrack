@@ -63,6 +63,8 @@ executable youtrack-test
                      , base-unicode-symbols
                      , exceptions
                      , optparse-applicative
+                     , pretty-show
                      , text
+                     , unicode-show
                      , unordered-containers
                      , youtrack

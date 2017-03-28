@@ -15,6 +15,7 @@ let
     overrides = with haskell.lib; new: old:
     let parent = (oldArgs.overrides or (_: _: {})) new old;
     in with new; parent // {
+      unicode-show = dontCheck old.unicode-show;
     };
   });
 

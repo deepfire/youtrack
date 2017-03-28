@@ -287,7 +287,7 @@ data Issue =
     , issue_state           ∷ State       --
     , issue_created         ∷ LocalTime
     , issue_resolved        ∷ Maybe LocalTime
-    , issue_updated         ∷ LocalTime
+    , issue_updated         ∷ Maybe LocalTime
     , issue_estimation      ∷ Maybe Hours  --
     , issue_description     ∷ Maybe Description
     , issue_votes           ∷ Int
@@ -351,7 +351,8 @@ instance FromJSON (Reader ProjectDict Issue) where
         PDate issue_created   ← get $ field "created"
         resolved              ← mget $ field "resolved"
         let issue_resolved    = fmap fromPDate resolved
-        PDate issue_updated   ← get $ field "updated"
+        updated               ← mget $ field "updated"
+        let issue_updated     = fmap fromPDate updated
         issue_description     ← mget $ field "description"
         estimation ∷ Maybe [String]
                               ← mget $ field "Estimation"

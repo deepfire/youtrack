@@ -383,6 +383,7 @@ mandatoryIssueFields =
 
 data  Comment
     = Comment { comm_issue   ∷ Issue
+              , comm_id      ∷ String
               , comm_author  ∷ Member
               , comm_created ∷ LocalTime
               , comm_updated ∷ Maybe LocalTime
@@ -391,6 +392,7 @@ data  Comment
 instance FromJSON (Reader Issue Comment)
     where parseJSON = AE.withObject "Comment" $ \o → do
             comm_text ∷ String ← fmap T.unpack $ o .: "text"
+            comm_id      ← o .: "id"
             comm_created ← fmap youtrack_timeint_localtime        $ o .:  "created"
             comm_updated ← fmap (fmap youtrack_timeint_localtime) $ o .:? "updated"
             author       ← o .: "author"

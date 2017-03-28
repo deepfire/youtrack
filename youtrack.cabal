@@ -19,6 +19,8 @@ source-repository head
   location: https://github.com/deepfire/youtrack.git
 
 library
+  hs-source-dirs:      src
+
   exposed-modules:     Youtrack
                      , Youtrack.Exchanges
                      , Youtrack.Names

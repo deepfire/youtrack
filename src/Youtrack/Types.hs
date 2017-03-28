@@ -261,9 +261,12 @@ instance FromJSON (Reader YT Project) where { parseJSON
              let project_accessor = find (\Member{..} → ytLogin ≡ member_login) project_members
              pure Project{..}; }
 
+unknown_member ∷ String → Member
+unknown_member x = Member (MLogin $ printf "<unknown-member-%s>" x) (MFullName (FullName "<unknown>" "<member>"))
+
 lookup_member ∷ [Member] → MLogin → Member
 lookup_member ms ((flip find) ms ∘ (\l m → l ≡ member_login m) → Just m) = m
-lookup_member _ ml = error $ printf "Couldn't find project ∈ with login name '%s'." $ fromMLogin ml
+lookup_member _ (MLogin ml) = unknown_member ml
 
 lookup_project ∷ ProjectDict → PAlias → Project
 lookup_project pd key@(PAlias keys) =
